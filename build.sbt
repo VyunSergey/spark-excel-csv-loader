@@ -24,6 +24,7 @@ lazy val commonLibraryDependencies = Seq(
   // Spark
   "org.apache.spark"           %% "spark-core"         % SparkVersion,
   "org.apache.spark"           %% "spark-sql"          % SparkVersion,
+  "org.apache.spark"           %% "spark-hive"         % SparkVersion,
   // Spark Excel
   "com.crealytics"             %% "spark-excel"        % SparkExcelVersion,
   // Spark Csv
