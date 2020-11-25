@@ -17,7 +17,7 @@ lazy val organizationSettings = Seq(
   organization := "com.vyunsergey",
   name := "spark-excel-csv-loader",
   homepage := Some(url("https://github.com/VyunSergey")),
-  licenses ++= Seq("Apache License, Version 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0.html"))
+  licenses := Seq(("Apache License, Version 2.0", url("http://www.apache.org/licenses/LICENSE-2.0.html")))
 )
 
 lazy val commonLibraryDependencies = Seq(
