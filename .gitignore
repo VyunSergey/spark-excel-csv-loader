@@ -24,6 +24,7 @@ atlassian-ide-plugin.xml
 ### Scala template
 *.class
 *.log
+*.log.*
 
 ### SBT template
 # Simple Build Tool
@@ -40,3 +41,4 @@ project/plugins/project/
 .lib/
 .history
 .cache
+/src/test/resources/csv/benchmark/
