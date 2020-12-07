@@ -24,18 +24,18 @@ class ReaderTest extends AnyFlatSpec with Matchers {
       df.count shouldBe expectedNumRows
     }
 
-    check(dataFrames.test1DfPath)(readerConf ++
+    check(dataFrames.test1Path)(readerConf ++
       Map("reader.csv.header" -> "true",
         "reader.csv.delimiter" -> ";",
         "reader.csv.inferSchema" -> "true")
     )(3, 3)
 
-    check(dataFrames.test2DfPath)(readerConf ++
+    check(dataFrames.test2Path)(readerConf ++
       Map("reader.csv.header" -> "true",
         "reader.csv.inferSchema" -> "true")
     )(5, 10)
 
-    check(dataFrames.test3DfPath)(readerConf ++
+    check(dataFrames.test3Path)(readerConf ++
       Map("reader.csv.header" -> "true",
         "reader.csv.inferSchema" -> "true")
     )(14, 10)

@@ -16,20 +16,22 @@ case class TestDataFrame(readerConf: ReaderConfig, spark: SparkSession) {
     df.show(false)
   }
 
-  val test1DfPath: Path = Configuration.convertPath("src/test/resources/csv/test1.csv")
-  val test2DfPath: Path = Configuration.convertPath("src/test/resources/csv/test2.csv")
-  val test3DfPath: Path = Configuration.convertPath("src/test/resources/csv/test3.csv")
+  val test1Path: Path = Configuration.convertPath("src/test/resources/csv/test1.csv")
+  val test2Path: Path = Configuration.convertPath("src/test/resources/csv/test2.csv")
+  val test3Path: Path = Configuration.convertPath("src/test/resources/csv/test3.csv")
+  val titanicPath: Path = Configuration.convertPath("src/test/resources/csv/titanic.csv")
+  val gisPath: Path = Configuration.convertPath("src/test/resources/csv/benchmark/gis.csv")
 
-  lazy val test1Df: DataFrame = Reader.csv(test1DfPath)(readerConf ++
+  lazy val test1Df: DataFrame = Reader.csv(test1Path)(readerConf ++
     Map("reader.csv.header" -> "true",
       "reader.csv.delimiter" -> ";",
       "reader.csv.inferSchema" -> "true"))(spark)
 
-  lazy val test2Df: DataFrame = Reader.csv(test2DfPath)(readerConf ++
+  lazy val test2Df: DataFrame = Reader.csv(test2Path)(readerConf ++
     Map("reader.csv.header" -> "true",
       "reader.csv.inferSchema" -> "true"))(spark)
 
-  lazy val test3Df: DataFrame = Reader.csv(test2DfPath)(readerConf ++
+  lazy val test3Df: DataFrame = Reader.csv(test2Path)(readerConf ++
     Map("reader.csv.header" -> "true",
       "reader.csv.inferSchema" -> "true"))(spark)
 
