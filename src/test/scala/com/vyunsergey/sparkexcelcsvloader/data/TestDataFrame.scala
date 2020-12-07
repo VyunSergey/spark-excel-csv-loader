@@ -1,12 +1,12 @@
 package com.vyunsergey.sparkexcelcsvloader.data
 
 import com.vyunsergey.sparkexcelcsvloader.config.Configuration
-import com.vyunsergey.sparkexcelcsvloader.reader.Reader
+import com.vyunsergey.sparkexcelcsvloader.reader.{Reader, ReaderConfig}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import java.nio.file.Path
 
-case class TestDataFrame(spark: SparkSession) {
+case class TestDataFrame(readerConf: ReaderConfig, spark: SparkSession) {
   def printInfo(df: DataFrame): Unit = {
     println(s"Count: ${df.count}")
     df.printSchema
@@ -16,8 +16,22 @@ case class TestDataFrame(spark: SparkSession) {
     df.show(false)
   }
 
-  val simpleDfPath: Path = Configuration.convertPath("src/test/resources/read/csv/test1.csv")
-  lazy val simpleDf: DataFrame = Reader.csv(simpleDfPath)(spark)
+  val test1DfPath: Path = Configuration.convertPath("src/test/resources/csv/test1.csv")
+  val test2DfPath: Path = Configuration.convertPath("src/test/resources/csv/test2.csv")
+  val test3DfPath: Path = Configuration.convertPath("src/test/resources/csv/test3.csv")
+
+  lazy val test1Df: DataFrame = Reader.csv(test1DfPath)(readerConf ++
+    Map("reader.csv.header" -> "true",
+      "reader.csv.delimiter" -> ";",
+      "reader.csv.inferSchema" -> "true"))(spark)
+
+  lazy val test2Df: DataFrame = Reader.csv(test2DfPath)(readerConf ++
+    Map("reader.csv.header" -> "true",
+      "reader.csv.inferSchema" -> "true"))(spark)
+
+  lazy val test3Df: DataFrame = Reader.csv(test2DfPath)(readerConf ++
+    Map("reader.csv.header" -> "true",
+      "reader.csv.inferSchema" -> "true"))(spark)
 
   lazy val integersDf: DataFrame =
     spark.createDataFrame(TestRow.genIntegersSeqRows(100))

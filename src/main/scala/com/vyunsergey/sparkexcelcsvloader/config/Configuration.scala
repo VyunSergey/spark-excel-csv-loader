@@ -8,7 +8,7 @@ import java.nio.file.{Path, Paths}
 object Configuration {
   lazy val config: AppConf = ConfigSource.default.loadOrThrow[AppConf]
 
-  case class AppConf(sparkConf: Map[String, String])
+  case class AppConf(readerConf: Map[String, String], sparkConf: Map[String, String])
 
   def convertPath(path: String): Path = {
     Paths.get(new File(path).toURI)

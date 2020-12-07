@@ -2,6 +2,7 @@ package com.vyunsergey.sparkexcelcsvloader.transformer
 
 import com.vyunsergey.sparkexcelcsvloader.config.Configuration
 import com.vyunsergey.sparkexcelcsvloader.data.TestDataFrame
+import com.vyunsergey.sparkexcelcsvloader.reader.ReaderConfig
 import com.vyunsergey.sparkexcelcsvloader.spark.{SparkConfig, SparkConnection}
 import org.apache.spark.sql.types.{ArrayType, LongType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -12,9 +13,10 @@ import scala.util.Try
 
 class TransformerTest extends AnyFlatSpec with Matchers {
   lazy val conf: Configuration.AppConf = Configuration.config
+  lazy val readerConf: ReaderConfig = ReaderConfig.make(conf)
   lazy val sparkConf: SparkConfig = SparkConfig.make(conf)
-  implicit lazy val spark: SparkSession = SparkConnection.make("App", sparkConf)
-  val dataFrames: TestDataFrame = TestDataFrame(spark)
+  implicit lazy val spark: SparkSession = SparkConnection.make("Transformer Test")(sparkConf)
+  val dataFrames: TestDataFrame = TestDataFrame(readerConf, spark)
 
   "stringColumns" should "convert all columns in DataFrame to StringType" in {
     def check(df: DataFrame): Unit = {
@@ -27,7 +29,9 @@ class TransformerTest extends AnyFlatSpec with Matchers {
       }
     }
 
-    check(dataFrames.simpleDf)
+    check(dataFrames.test1Df)
+    check(dataFrames.test2Df)
+    check(dataFrames.test3Df)
     check(dataFrames.integersDf)
     check(dataFrames.numbersDf)
     check(dataFrames.decimalDf)
@@ -51,7 +55,9 @@ class TransformerTest extends AnyFlatSpec with Matchers {
       } shouldBe true
     }
 
-    check(dataFrames.simpleDf)
+    check(dataFrames.test1Df)
+    check(dataFrames.test2Df)
+    check(dataFrames.test3Df)
     check(dataFrames.integersDf)
     check(dataFrames.numbersDf)
     check(dataFrames.decimalDf)
@@ -72,7 +78,9 @@ class TransformerTest extends AnyFlatSpec with Matchers {
       } shouldBe true
     }
 
-    check(Transformer.stringColumns(dataFrames.simpleDf))
+    check(Transformer.stringColumns(dataFrames.test1Df))
+    check(Transformer.stringColumns(dataFrames.test2Df))
+    check(Transformer.stringColumns(dataFrames.test3Df))
     check(Transformer.stringColumns(dataFrames.integersDf))
     check(Transformer.stringColumns(dataFrames.numbersDf))
     check(Transformer.stringColumns(dataFrames.decimalDf))
@@ -95,7 +103,9 @@ class TransformerTest extends AnyFlatSpec with Matchers {
       }
     }
 
-    check(Transformer.arrayColumn(Transformer.stringColumns(dataFrames.simpleDf)))
+    check(Transformer.arrayColumn(Transformer.stringColumns(dataFrames.test1Df)))
+    check(Transformer.arrayColumn(Transformer.stringColumns(dataFrames.test2Df)))
+    check(Transformer.arrayColumn(Transformer.stringColumns(dataFrames.test3Df)))
     check(Transformer.arrayColumn(Transformer.stringColumns(dataFrames.integersDf)))
     check(Transformer.arrayColumn(Transformer.stringColumns(dataFrames.numbersDf)))
     check(Transformer.arrayColumn(Transformer.stringColumns(dataFrames.decimalDf)))
@@ -125,7 +135,9 @@ class TransformerTest extends AnyFlatSpec with Matchers {
       splitDf.count shouldBe structDf.count
     }
 
-    check(dataFrames.simpleDf)
+    check(dataFrames.test1Df)
+    check(dataFrames.test2Df)
+    check(dataFrames.test3Df)
     check(dataFrames.integersDf)
     check(dataFrames.numbersDf)
     check(dataFrames.decimalDf)
@@ -157,7 +169,9 @@ class TransformerTest extends AnyFlatSpec with Matchers {
       keyValDf.count shouldBe df.count * df.columns.length
     }
 
-    check(dataFrames.simpleDf)
+    check(dataFrames.test1Df)
+    check(dataFrames.test2Df)
+    check(dataFrames.test3Df)
     check(dataFrames.integersDf)
     check(dataFrames.numbersDf)
     check(dataFrames.decimalDf)

@@ -10,18 +10,35 @@ import org.scalatest.matchers.should.Matchers
 
 class ReaderTest extends AnyFlatSpec with Matchers {
   lazy val conf: Configuration.AppConf = Configuration.config
+  lazy val readerConf: ReaderConfig = ReaderConfig.make(conf)
   lazy val sparkConf: SparkConfig = SparkConfig.make(conf)
-  implicit lazy val spark: SparkSession = SparkConnection.make("App", sparkConf)
-  val dataFrames: TestDataFrame = TestDataFrame(spark)
+  implicit lazy val spark: SparkSession = SparkConnection.make("Reader Test")(sparkConf)
+  val dataFrames: TestDataFrame = TestDataFrame(readerConf, spark)
 
   "Reader" should "correctly read .csv file" in {
-    def check(path: Path): Unit = {
-      val df: DataFrame = Reader.csv(path)
-      df.columns.length > 0 shouldBe true
-      df.count > 0 shouldBe true
+    def check(path: Path)(conf: ReaderConfig)
+             (expectedNumCols: Int, expectedNumRows: Int): Unit = {
+      val df: DataFrame = Reader.csv(path)(conf)
+
+      df.columns.length shouldBe expectedNumCols
+      df.count shouldBe expectedNumRows
     }
 
-    check(dataFrames.simpleDfPath)
+    check(dataFrames.test1DfPath)(readerConf ++
+      Map("reader.csv.header" -> "true",
+        "reader.csv.delimiter" -> ";",
+        "reader.csv.inferSchema" -> "true")
+    )(3, 3)
+
+    check(dataFrames.test2DfPath)(readerConf ++
+      Map("reader.csv.header" -> "true",
+        "reader.csv.inferSchema" -> "true")
+    )(5, 10)
+
+    check(dataFrames.test3DfPath)(readerConf ++
+      Map("reader.csv.header" -> "true",
+        "reader.csv.inferSchema" -> "true")
+    )(14, 10)
   }
 
 }

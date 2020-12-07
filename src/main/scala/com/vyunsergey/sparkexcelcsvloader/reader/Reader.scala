@@ -5,14 +5,17 @@ import java.nio.file.Path
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 object Reader {
-  def csv(path: Path)(implicit spark: SparkSession): DataFrame = {
+  def csv(path: Path)(readerConf: ReaderConfig)(implicit spark: SparkSession): DataFrame = {
     spark.read
       .format("com.databricks.spark.csv")
-      .option("encoding", "UTF-8")
-      .option("header", value = true)
-      .option("sep", ";")
-      .option("inferSchema", value = true)
+      .options(readerConf.csvOptions())
       .load(path.toUri.getPath)
   }
 
+  def excel(path: Path)(readerConf: ReaderConfig)(implicit spark: SparkSession): DataFrame = {
+    spark.read
+      .format("com.crealytics.spark.excel")
+      .options(readerConf.excelOptions())
+      .load(path.toUri.getPath)
+  }
 }

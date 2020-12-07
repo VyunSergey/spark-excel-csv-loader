@@ -4,7 +4,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 
 object SparkConnection {
-  def make(name: String, sparkConf: SparkConfig): SparkSession = {
+  def make(name: String)(sparkConf: SparkConfig): SparkSession = {
     lazy val spark: SparkSession = SparkSession.builder
       .master(sparkConf.master())
       .appName(name)
