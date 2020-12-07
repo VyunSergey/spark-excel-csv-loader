@@ -10,6 +10,7 @@ val BetterMonadicForVersion = "0.2.4"
 val ScalaTestVersion        = "3.2.2"
 val ScalaCheckVersion       = "1.14.1"
 val ScalaTestPlusVersion    = "3.2.2.0"
+val ScalaMeterVersion       = "0.18"
 val SparkTestingBaseVersion = "2.2.0_0.12.0"
 val ScalaMockVersion        = "3.6.0"
 
@@ -18,6 +19,14 @@ lazy val organizationSettings = Seq(
   name := "spark-excel-csv-loader",
   homepage := Some(url("https://github.com/VyunSergey")),
   licenses := Seq(("Apache License, Version 2.0", url("http://www.apache.org/licenses/LICENSE-2.0.html")))
+)
+
+lazy val testSettings = Seq(
+  testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
+  parallelExecution in Test := false,
+  fork := true,
+  outputStrategy := Some(StdoutOutput),
+  connectInput := true
 )
 
 lazy val commonLibraryDependencies = Seq(
@@ -37,6 +46,8 @@ lazy val commonLibraryDependencies = Seq(
   "org.scalacheck"             %% "scalacheck"         % ScalaCheckVersion % Test,
   // ScalaTestPlus
   "org.scalatestplus"          %% "scalacheck-1-14"    % ScalaTestPlusVersion % Test,
+  // ScalaMeter
+  "com.storm-enroute"          %% "scalameter"         % ScalaMeterVersion,
   // SparkTestingBase
   "com.holdenkarau"            %% "spark-testing-base" % SparkTestingBaseVersion % Test,
   // ScalaMock
@@ -58,6 +69,7 @@ lazy val scalaCompilerOptions = Seq(
 
 lazy val root = (project in file(".")).settings(
   organizationSettings,
+  testSettings,
   libraryDependencies ++= commonLibraryDependencies,
   scalacOptions ++= scalaCompilerOptions,
   addCompilerPlugin("org.spire-math" %% "kind-projector"     % KindProjectorVersion),
