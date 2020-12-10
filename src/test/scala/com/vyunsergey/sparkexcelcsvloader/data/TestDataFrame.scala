@@ -19,8 +19,16 @@ case class TestDataFrame(readerConf: ReaderConfig, spark: SparkSession) {
   val test1Path: Path = Configuration.convertPath("src/test/resources/csv/test1.csv")
   val test2Path: Path = Configuration.convertPath("src/test/resources/csv/test2.csv")
   val test3Path: Path = Configuration.convertPath("src/test/resources/csv/test3.csv")
+
+  val test1WriterPath: Path = Configuration.convertPath("src/test/resources/csv/writer/test1")
+  val test2WriterPath: Path = Configuration.convertPath("src/test/resources/csv/writer/test2")
+  val test3WriterPath: Path = Configuration.convertPath("src/test/resources/csv/writer/test3")
+
   val titanicPath: Path = Configuration.convertPath("src/test/resources/csv/titanic.csv")
+  val titanicWriterPath: Path = Configuration.convertPath("src/test/resources/csv/writer/titanic")
+
   val gisPath: Path = Configuration.convertPath("src/test/resources/csv/benchmark/gis.csv")
+  val gisWriterPath: Path = Configuration.convertPath("src/test/resources/csv/benchmark/writer/gis")
 
   lazy val test1Df: DataFrame = Reader.csv(test1Path)(readerConf ++
     Map("reader.csv.header" -> "true",
@@ -32,6 +40,10 @@ case class TestDataFrame(readerConf: ReaderConfig, spark: SparkSession) {
       "reader.csv.inferSchema" -> "true"))(spark)
 
   lazy val test3Df: DataFrame = Reader.csv(test2Path)(readerConf ++
+    Map("reader.csv.header" -> "true",
+      "reader.csv.inferSchema" -> "true"))(spark)
+
+  lazy val titanicDf: DataFrame = Reader.csv(titanicPath)(readerConf ++
     Map("reader.csv.header" -> "true",
       "reader.csv.inferSchema" -> "true"))(spark)
 
