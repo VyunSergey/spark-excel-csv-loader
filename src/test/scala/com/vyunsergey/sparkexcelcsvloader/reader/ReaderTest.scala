@@ -39,6 +39,11 @@ class ReaderTest extends AnyFlatSpec with Matchers {
       Map("reader.csv.header" -> "true",
         "reader.csv.inferSchema" -> "true")
     )(14, 10)
+
+    check(dataFrames.titanicPath)(readerConf ++
+      Map("reader.csv.header" -> "true",
+        "reader.csv.inferSchema" -> "true")
+    )(5, 1313)
   }
 
 }
