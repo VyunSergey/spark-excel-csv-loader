@@ -42,3 +42,4 @@ project/plugins/project/
 .history
 .cache
 /src/test/resources/csv/benchmark/
+/src/test/resources/csv/writer/
