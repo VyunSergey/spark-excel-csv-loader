@@ -7,6 +7,135 @@ import org.apache.spark.sql.types.{ArrayType, DataType, LongType, StringType, St
 import org.apache.spark.sql.{Column, DataFrame, SparkSession}
 
 object Transformer {
+  /**
+   * Convert DataFrame to Key-Value Metadata DataFrame with numerated column metadata (`name`, `type`)
+   * by (`id`, `num`) pair where `id` - row number and `num` - column number.
+   *
+   * == Example ==
+   *
+   * {{{
+   *   import spark.implicits._
+   *
+   *   case class Person(name: String, age: Int, gender: String)
+   *
+   *   val data = Seq(
+   *     Person("Michael", 29, "M"),
+   *     Person("Sara", 30, "F"),
+   *     Person("Justin", 19, "M")
+   *   )
+   *
+   *   val ds = spark.createDataset(data)
+   *
+   *   ds.show(false)
+   *   // +-------+---+------+
+   *   // |name   |age|gender|
+   *   // +-------+---+------+
+   *   // |Michael|29 |M     |
+   *   // |Sara   |30 |F     |
+   *   // |Justin |19 |M     |
+   *   // +-------+---+------+
+   *
+   *   ds.printSchema()
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- age: integer (nullable = false)
+   *   //  |-- gender: string (nullable = true)
+   *
+   *   val metaDf = Transformer.metaColumns(ds.toDF())
+   *
+   *   metaDf.show(false)
+   *   // +-----+---------------+
+   *   // |  key|            val|
+   *   // +-----+---------------+
+   *   // |[1,1]|  [name,string]|
+   *   // |[1,2]|  [age,integer]|
+   *   // |[1,3]|[gender,string]|
+   *   // +-----+---------------+
+   *
+   *   metaDf.printSchema()
+   *   // root
+   *   //  |-- key: struct (nullable = true)
+   *   //  |    |-- id: long (nullable = true)
+   *   //  |    |-- num: long (nullable = false)
+   *   //  |-- val: string (nullable = true)
+   * }}}
+   */
+  def metaColumns(df: DataFrame)
+                 (implicit spark: SparkSession, logger: Logger): DataFrame = {
+    import spark.implicits._
+
+    val types: Map[String, DataType] = df.schema.map(field => field.name -> field.dataType).toMap
+    val metaColumnNm = "meta"
+
+    val metaDf = Seq(1).toDF().select(
+      types.map { case (colNm, colTp) =>
+        struct(lit(colNm), lit(colTp.typeName)).as(s"${metaColumnNm}_$colNm")
+      }.toSeq: _*
+    )
+    val kvDf = keyValueColumns(metaDf)
+
+    kvDf
+  }
+
+  /**
+   * Convert DataFrame to Key-Value DataFrame with numerated cells by (`id`, `num`) pair
+   * where `id` - row number and `num` - column number.
+   *
+   * == Example ==
+   *
+   * {{{
+   *   import spark.implicits._
+   *
+   *   case class Person(name: String, age: Int, gender: String)
+   *
+   *   val data = Seq(
+   *     Person("Michael", 29, "M"),
+   *     Person("Sara", 30, "F"),
+   *     Person("Justin", 19, "M")
+   *   )
+   *
+   *   val ds = spark.createDataset(data)
+   *
+   *   ds.show(false)
+   *   // +-------+---+------+
+   *   // |name   |age|gender|
+   *   // +-------+---+------+
+   *   // |Michael|29 |M     |
+   *   // |Sara   |30 |F     |
+   *   // |Justin |19 |M     |
+   *   // +-------+---+------+
+   *
+   *   ds.printSchema()
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- age: integer (nullable = false)
+   *   //  |-- gender: string (nullable = true)
+   *
+   *   val kvDf = Transformer.keyValueColumns(ds.toDF())
+   *
+   *   kvDf.show(false)
+   *   // +-----+-------+
+   *   // |  key|    val|
+   *   // +-----+-------+
+   *   // |[1,1]|Michael|
+   *   // |[1,2]|     29|
+   *   // |[1,3]|      M|
+   *   // |[2,1]|   Sara|
+   *   // |[2,2]|     30|
+   *   // |[2,3]|      F|
+   *   // |[3,1]| Justin|
+   *   // |[3,2]|     19|
+   *   // |[3,3]|      M|
+   *   // +-----+-------+
+   *
+   *   kvDf.printSchema()
+   *   // root
+   *   //  |-- key: struct (nullable = true)
+   *   //  |    |-- id: long (nullable = true)
+   *   //  |    |-- num: long (nullable = false)
+   *   //  |-- val: string (nullable = true)
+   * }}}
+   */
   def keyValueColumns(df: DataFrame)
                      (implicit spark: SparkSession, logger: Logger): DataFrame = {
     val strDf = stringColumns(df)
@@ -21,6 +150,57 @@ object Transformer {
     splDf
   }
 
+  /**
+   * Convert all columns to StringType.
+   *
+   * == Example ==
+   *
+   * {{{
+   *   import spark.implicits._
+   *
+   *   case class Person(name: String, age: Int, gender: String)
+   *
+   *   val data = Seq(
+   *     Person("Michael", 29, "M"),
+   *     Person("Sara", 30, "F"),
+   *     Person("Justin", 19, "M")
+   *   )
+   *
+   *   val ds = spark.createDataset(data)
+   *
+   *   ds.show(false)
+   *   // +-------+---+------+
+   *   // |name   |age|gender|
+   *   // +-------+---+------+
+   *   // |Michael|29 |M     |
+   *   // |Sara   |30 |F     |
+   *   // |Justin |19 |M     |
+   *   // +-------+---+------+
+   *
+   *   ds.printSchema()
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- age: integer (nullable = false)
+   *   //  |-- gender: string (nullable = true)
+   *
+   *   val strDf = Transformer.stringColumns(ds.toDF())
+   *
+   *   strDf.show(false)
+   *   // +-------+---+------+
+   *   // |   name|age|gender|
+   *   // +-------+---+------+
+   *   // |Michael| 29|     M|
+   *   // |   Sara| 30|     F|
+   *   // | Justin| 19|     M|
+   *   // +-------+---+------+
+   *
+   *   strDf.printSchema()
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- age: string (nullable = false)
+   *   //  |-- gender: string (nullable = true)
+   * }}}
+   */
   def stringColumns(df: DataFrame)(implicit spark: SparkSession): DataFrame = {
     val columns: Array[String] = df.columns
     val types: Map[String, DataType] = df.schema.map(field => field.name -> field.dataType).toMap
@@ -33,6 +213,69 @@ object Transformer {
     )
   }
 
+  /**
+   * Numerate all cells of all columns with (`id`, `num`) pair where `id` - row number and `num` - column number.
+   *
+   * == Example ==
+   *
+   * {{{
+   *   import spark.implicits._
+   *
+   *   case class Person(name: String, age: Int, gender: String)
+   *
+   *   val data = Seq(
+   *     Person("Michael", 29, "M"),
+   *     Person("Sara", 30, "F"),
+   *     Person("Justin", 19, "M")
+   *   )
+   *
+   *   val ds = spark.createDataset(data)
+   *
+   *   ds.show(false)
+   *   // +-------+---+------+
+   *   // |name   |age|gender|
+   *   // +-------+---+------+
+   *   // |Michael|29 |M     |
+   *   // |Sara   |30 |F     |
+   *   // |Justin |19 |M     |
+   *   // +-------+---+------+
+   *
+   *   ds.printSchema()
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- age: integer (nullable = false)
+   *   //  |-- gender: string (nullable = true)
+   *
+   *   val numDf = Transformer.numericColumns(ds.toDF())
+   *
+   *   numDf.show()
+   *   // +---------------+----------+----------+
+   *   // |       key_name|   key_age|key_gender|
+   *   // +---------------+----------+----------+
+   *   // |[[1,1],Michael]|[[1,2],29]| [[1,3],M]|
+   *   // |   [[2,1],Sara]|[[2,2],30]| [[2,3],F]|
+   *   // | [[3,1],Justin]|[[3,2],19]| [[3,3],M]|
+   *   // +---------------+----------+----------+
+   *
+   *   numDf.printSchema()
+   *   // root
+   *   //  |-- key_name: struct (nullable = false)
+   *   //  |    |-- key: struct (nullable = false)
+   *   //  |    |    |-- id: long (nullable = true)
+   *   //  |    |    |-- num: long (nullable = false)
+   *   //  |    |-- val: string (nullable = true)
+   *   //  |-- key_age: struct (nullable = false)
+   *   //  |    |-- key: struct (nullable = false)
+   *   //  |    |    |-- id: long (nullable = true)
+   *   //  |    |    |-- num: long (nullable = false)
+   *   //  |    |-- val: integer (nullable = false)
+   *   //  |-- key_gender: struct (nullable = false)
+   *   //  |    |-- key: struct (nullable = false)
+   *   //  |    |    |-- id: long (nullable = true)
+   *   //  |    |    |-- num: long (nullable = false)
+   *   //  |    |-- val: string (nullable = true)
+   *  }}}
+   */
   def numericColumns(df: DataFrame)(implicit spark: SparkSession): DataFrame = {
     val columns: Array[String] = df.columns
     val keyColumnNm = "id"
@@ -54,6 +297,56 @@ object Transformer {
       )
   }
 
+  /**
+   * Creates a new array of all columns. The input columns must all have the same data type.
+   *
+   * == Example ==
+   *
+   * {{{
+   *   import spark.implicits._
+   *
+   *   case class Person(name: String, age: String, gender: String)
+   *
+   *   val data = Seq(
+   *     Person("Michael", "29", "M"),
+   *     Person("Sara", "30", "F"),
+   *     Person("Justin", "19", "M")
+   *   )
+   *
+   *   val ds = spark.createDataset(data)
+   *
+   *   ds.show()
+   *   // +-------+---+------+
+   *   // |name   |age|gender|
+   *   // +-------+---+------+
+   *   // |Michael|29 |M     |
+   *   // |Sara   |30 |F     |
+   *   // |Justin |19 |M     |
+   *   // +-------+---+------+
+   *
+   *   ds.printSchema()
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- age: string (nullable = true)
+   *   //  |-- gender: string (nullable = true)
+   *
+   *   val arrDf = Transformer.arrayColumn(ds.toDF())
+   *
+   *   arrDf.show()
+   *   // +----------------+
+   *   // |             arr|
+   *   // +----------------+
+   *   // |[Michael, 29, M]|
+   *   // |   [Sara, 30, F]|
+   *   // | [Justin, 19, M]|
+   *   // +----------------+
+   *
+   *   arrDf.printSchema()
+   *   // root
+   *   //  |-- arr: array (nullable = false)
+   *   //  |    |-- element: string (containsNull = true)
+   * }}}
+   */
   def arrayColumn(df: DataFrame)(implicit spark: SparkSession): DataFrame = {
     val columns: Array[String] = df.columns
     val arrColumnNm = "arr"
@@ -63,6 +356,61 @@ object Transformer {
     )
   }
 
+  /**
+   * Creates a new row for each element in the given column of ArrayType.
+   *
+   * == Example ==
+   *
+   * {{{
+   *   import spark.implicits._
+   *
+   *   case class Person(name: String, age: Int, gender: String)
+   *   case class Persons(persons: Array[Person])
+   *
+   *   val data = Seq(
+   *     Persons(Array(
+   *       Person("Michael", 29, "M"),
+   *       Person("Sara", 30, "F"),
+   *       Person("Justin", 19, "M")
+   *     ))
+   *   )
+   *
+   *   val ds = spark.createDataset(data)
+   *
+   *   ds.show()
+   *   // +--------------------------------------------+
+   *   // |persons                                     |
+   *   // +--------------------------------------------+
+   *   // |[[Michael,29,M], [Sara,30,F], [Justin,19,M]]|
+   *   // +--------------------------------------------+
+   *
+   *   ds.printSchema()
+   *   // root
+   *   //  |-- persons: array (nullable = true)
+   *   //  |    |-- element: struct (containsNull = true)
+   *   //  |    |    |-- name: string (nullable = true)
+   *   //  |    |    |-- age: integer (nullable = false)
+   *   //  |    |    |-- gender: string (nullable = true)
+   *
+   *   val expDf = Transformer.explodeColumn(ds.toDF())
+   *
+   *   expDf.show()
+   *   // +--------------+
+   *   // |       explode|
+   *   // +--------------+
+   *   // |[Michael,29,M]|
+   *   // |   [Sara,30,F]|
+   *   // | [Justin,19,M]|
+   *   // +--------------+
+   *
+   *   expDf.printSchema()
+   *   // root
+   *   //  |-- explode: struct (nullable = true)
+   *   //  |    |-- name: string (nullable = true)
+   *   //  |    |-- age: integer (nullable = false)
+   *   //  |    |-- gender: string (nullable = true)
+   * }}}
+   */
   def explodeColumn(df: DataFrame)(implicit spark: SparkSession): DataFrame = {
     val arrColumn: Column = df.schema.find { field =>
       field.dataType match {
@@ -78,6 +426,59 @@ object Transformer {
     )
   }
 
+  /**
+   * Split all columns of StructType into separated columns of inner types.
+   *
+   * == Example ==
+   *
+   * {{{
+   *   import spark.implicits._
+   *
+   *   case class PersonInfo(age: Int, gender: String)
+   *   case class Person(name: String, info: PersonInfo)
+   *
+   *   val data = Seq(
+   *     Person("Michael", PersonInfo(29, "M")),
+   *     Person("Sara", PersonInfo(30, "F")),
+   *     Person("Justin", PersonInfo(19, "M"))
+   *   )
+   *
+   *   val ds = spark.createDataset(data)
+   *
+   *   ds.show()
+   *   // +-------+------+
+   *   // |   name|  info|
+   *   // +-------+------+
+   *   // |Michael|[29,M]|
+   *   // |   Sara|[30,F]|
+   *   // | Justin|[19,M]|
+   *   // +-------+------+
+   *
+   *   ds.printSchema()
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- info: struct (nullable = true)
+   *   //  |    |-- age: integer (nullable = false)
+   *   //  |    |-- gender: string (nullable = true)
+   *
+   *   val splitDf = Transformer.splitStructColumn(ds.toDF())
+   *
+   *   splitDf.show()
+   *   // +-------+---+------+
+   *   // |   name|age|gender|
+   *   // +-------+---+------+
+   *   // |Michael| 29|     M|
+   *   // |   Sara| 30|     F|
+   *   // | Justin| 19|     M|
+   *   // +-------+---+------+
+   *
+   *   splitDf.printSchema()
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- age: integer (nullable = true)
+   *   //  |-- gender: string (nullable = true)
+   * }}}
+   */
   def splitStructColumn(df: DataFrame)(implicit spark: SparkSession): DataFrame = {
     def structColumnSelector(field: StructField): Array[Column] = field match {
       case StructField(nm, StructType(arr), _, _) => arr.map(f => col(s"$nm.${f.name}"))
