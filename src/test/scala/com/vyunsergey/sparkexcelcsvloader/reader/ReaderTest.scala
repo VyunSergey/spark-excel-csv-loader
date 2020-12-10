@@ -4,6 +4,7 @@ import java.nio.file.Path
 import com.vyunsergey.sparkexcelcsvloader.config.Configuration
 import com.vyunsergey.sparkexcelcsvloader.data.TestDataFrame
 import com.vyunsergey.sparkexcelcsvloader.spark.{SparkConfig, SparkConnection}
+import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -13,7 +14,8 @@ class ReaderTest extends AnyFlatSpec with Matchers {
   lazy val readerConf: ReaderConfig = ReaderConfig.make(conf)
   lazy val sparkConf: SparkConfig = SparkConfig.make(conf)
   implicit lazy val spark: SparkSession = SparkConnection.make("Reader Test")(sparkConf)
-  val dataFrames: TestDataFrame = TestDataFrame(readerConf, spark)
+  implicit lazy val logger: Logger = LogManager.getLogger(getClass)
+  val dataFrames: TestDataFrame = TestDataFrame(readerConf, spark, logger)
 
   "Reader" should "correctly read .csv file" in {
     def check(path: Path)(conf: ReaderConfig)

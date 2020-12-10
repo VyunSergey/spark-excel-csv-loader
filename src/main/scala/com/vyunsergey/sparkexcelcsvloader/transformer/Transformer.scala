@@ -1,17 +1,22 @@
 package com.vyunsergey.sparkexcelcsvloader.transformer
 
+import org.apache.log4j.Logger
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{array, col, explode_outer, lit, row_number, struct}
 import org.apache.spark.sql.types.{ArrayType, DataType, LongType, StringType, StructField, StructType}
 import org.apache.spark.sql.{Column, DataFrame, SparkSession}
 
 object Transformer {
-  def keyValueColumns(df: DataFrame)(implicit spark: SparkSession): DataFrame = {
+  def keyValueColumns(df: DataFrame)
+                     (implicit spark: SparkSession, logger: Logger): DataFrame = {
     val strDf = stringColumns(df)
     val numDf = numericColumns(strDf)
     val arrDf = arrayColumn(numDf)
     val expDf = explodeColumn(arrDf)
     val splDf = splitStructColumn(expDf)
+
+    logger.info(s"Transform Key-Value DataFrame with schema:\n${df.schema.treeString}\n" +
+      s"to DataFrame with schema:\n${splDf.schema.treeString}")
 
     splDf
   }
@@ -35,8 +40,7 @@ object Transformer {
     val valColumnNm = "val"
     val structColumnNm = "key"
 
-    df
-      .select(
+    df.select(
         columns.map(nm => col(nm).as(s"__$nm")): _*
       )
       .withColumn(keyColumnNm, row_number().over(Window.orderBy(lit(1))).cast(LongType))

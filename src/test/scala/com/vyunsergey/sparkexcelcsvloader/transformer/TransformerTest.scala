@@ -4,6 +4,7 @@ import com.vyunsergey.sparkexcelcsvloader.config.Configuration
 import com.vyunsergey.sparkexcelcsvloader.data.TestDataFrame
 import com.vyunsergey.sparkexcelcsvloader.reader.ReaderConfig
 import com.vyunsergey.sparkexcelcsvloader.spark.{SparkConfig, SparkConnection}
+import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.sql.types.{ArrayType, LongType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -16,7 +17,8 @@ class TransformerTest extends AnyFlatSpec with Matchers {
   lazy val readerConf: ReaderConfig = ReaderConfig.make(conf)
   lazy val sparkConf: SparkConfig = SparkConfig.make(conf)
   implicit lazy val spark: SparkSession = SparkConnection.make("Transformer Test")(sparkConf)
-  val dataFrames: TestDataFrame = TestDataFrame(readerConf, spark)
+  implicit lazy val logger: Logger = LogManager.getLogger(getClass)
+  val dataFrames: TestDataFrame = TestDataFrame(readerConf, spark, logger)
 
   "stringColumns" should "convert all columns in DataFrame to StringType" in {
     def check(df: DataFrame): Unit = {

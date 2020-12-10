@@ -2,11 +2,16 @@ package com.vyunsergey.sparkexcelcsvloader.data
 
 import com.vyunsergey.sparkexcelcsvloader.config.Configuration
 import com.vyunsergey.sparkexcelcsvloader.reader.{Reader, ReaderConfig}
+import org.apache.log4j.Logger
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import java.nio.file.Path
 
-case class TestDataFrame(readerConf: ReaderConfig, spark: SparkSession) {
+case class TestDataFrame(
+                          readerConf: ReaderConfig,
+                          spark: SparkSession,
+                          logger: Logger
+                        ) {
   def printInfo(df: DataFrame): Unit = {
     println(s"Count: ${df.count}")
     df.printSchema
@@ -15,6 +20,9 @@ case class TestDataFrame(readerConf: ReaderConfig, spark: SparkSession) {
     }
     df.show(false)
   }
+
+  implicit lazy val sparkImpl: SparkSession = spark
+  implicit lazy val loggerImpl: Logger = logger
 
   val test1Path: Path = Configuration.convertPath("src/test/resources/csv/test1.csv")
   val test2Path: Path = Configuration.convertPath("src/test/resources/csv/test2.csv")
@@ -33,19 +41,19 @@ case class TestDataFrame(readerConf: ReaderConfig, spark: SparkSession) {
   lazy val test1Df: DataFrame = Reader.csv(test1Path)(readerConf ++
     Map("reader.csv.header" -> "true",
       "reader.csv.delimiter" -> ";",
-      "reader.csv.inferSchema" -> "true"))(spark)
+      "reader.csv.inferSchema" -> "true"))
 
   lazy val test2Df: DataFrame = Reader.csv(test2Path)(readerConf ++
     Map("reader.csv.header" -> "true",
-      "reader.csv.inferSchema" -> "true"))(spark)
+      "reader.csv.inferSchema" -> "true"))
 
   lazy val test3Df: DataFrame = Reader.csv(test2Path)(readerConf ++
     Map("reader.csv.header" -> "true",
-      "reader.csv.inferSchema" -> "true"))(spark)
+      "reader.csv.inferSchema" -> "true"))
 
   lazy val titanicDf: DataFrame = Reader.csv(titanicPath)(readerConf ++
     Map("reader.csv.header" -> "true",
-      "reader.csv.inferSchema" -> "true"))(spark)
+      "reader.csv.inferSchema" -> "true"))
 
   lazy val integersDf: DataFrame =
     spark.createDataFrame(TestRow.genIntegersSeqRows(100))

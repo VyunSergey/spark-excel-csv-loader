@@ -4,6 +4,7 @@ import com.vyunsergey.sparkexcelcsvloader.config.Configuration
 import com.vyunsergey.sparkexcelcsvloader.data.TestDataFrame
 import com.vyunsergey.sparkexcelcsvloader.reader.{Reader, ReaderConfig}
 import com.vyunsergey.sparkexcelcsvloader.spark.{SparkConfig, SparkConnection}
+import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -16,7 +17,8 @@ class WriterTest extends AnyFlatSpec with Matchers {
   lazy val writerConf: WriterConfig = WriterConfig.make(conf)
   lazy val sparkConf: SparkConfig = SparkConfig.make(conf)
   implicit lazy val spark: SparkSession = SparkConnection.make("Writer Test")(sparkConf)
-  val dataFrames: TestDataFrame = TestDataFrame(readerConf, spark)
+  implicit lazy val logger: Logger = LogManager.getLogger(getClass)
+  val dataFrames: TestDataFrame = TestDataFrame(readerConf, spark, logger)
 
   "Writer" should "correctly write to .csv file" in {
     def check(df: DataFrame)(path: Path)

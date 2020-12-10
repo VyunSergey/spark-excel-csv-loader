@@ -4,6 +4,7 @@ import com.vyunsergey.sparkexcelcsvloader.config.Configuration
 import com.vyunsergey.sparkexcelcsvloader.data.TestDataFrame
 import com.vyunsergey.sparkexcelcsvloader.reader.{Reader, ReaderConfig}
 import com.vyunsergey.sparkexcelcsvloader.spark.{SparkConfig, SparkConnection}
+import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.sql.SparkSession
 import org.scalameter.api._
 
@@ -11,8 +12,10 @@ object ReaderBenchmark extends Bench.LocalTime {
   lazy val conf: Configuration.AppConf = Configuration.config
   lazy val readerConf: ReaderConfig = ReaderConfig.make(conf)
   lazy val sparkConf: SparkConfig = SparkConfig.make(conf)
-  implicit lazy val spark: SparkSession = SparkConnection.make("Reader Test")(sparkConf ++ Map(("spark.master", "local[*]")))
-  val dataFrames: TestDataFrame = TestDataFrame(readerConf, spark)
+  implicit lazy val spark: SparkSession = SparkConnection.make("Reader Benchmark")(sparkConf ++
+    Map("spark.master" -> "local[*]"))
+  implicit lazy val logger: Logger = LogManager.getLogger(getClass)
+  val dataFrames: TestDataFrame = TestDataFrame(readerConf, spark, logger)
 
   val gen: Gen[Unit] = Gen.unit("")
 
