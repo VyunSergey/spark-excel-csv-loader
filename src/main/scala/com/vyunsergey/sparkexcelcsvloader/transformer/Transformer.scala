@@ -74,6 +74,9 @@ object Transformer {
     )
     val kvDf = keyValueColumns(metaDf)
 
+    logger.info(s"Transform Metadata Key-Value DataFrame with schema:\n${df.schema.treeString}\n" +
+      s"to DataFrame with schema:\n${kvDf.schema.treeString}")
+
     kvDf
   }
 
