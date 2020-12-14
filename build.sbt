@@ -1,10 +1,10 @@
-
 lazy val scalaVersion2_11   = "2.11.12"
 scalaVersion := scalaVersion2_11
 val SparkVersion            = "2.2.0"
 val SparkExcelVersion       = "0.13.1"
 val SparkCsvVersion         = "1.5.0"
 val PureConfigVersion       = "0.12.0"
+val ScallopVersion          = "4.0.0"
 val KindProjectorVersion    = "0.9.6"
 val BetterMonadicForVersion = "0.2.4"
 val ScalaTestVersion        = "3.2.2"
@@ -24,6 +24,7 @@ lazy val organizationSettings = Seq(
 lazy val testSettings = Seq(
   testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
   parallelExecution in Test := false,
+  Test / testOptions := Seq(Tests.Filter(_.endsWith("Test"))),
   fork := true,
   outputStrategy := Some(StdoutOutput),
   connectInput := true
@@ -40,6 +41,8 @@ lazy val commonLibraryDependencies = Seq(
   "com.databricks"             %% "spark-csv"          % SparkCsvVersion,
   // PureConfig
   "com.github.pureconfig"      %% "pureconfig"         % PureConfigVersion,
+  // Scallop
+  "org.rogach"                 %% "scallop"            % ScallopVersion,
   // ScalaTest
   "org.scalatest"              %% "scalatest"          % ScalaTestVersion % Test,
   // ScalaCheck
