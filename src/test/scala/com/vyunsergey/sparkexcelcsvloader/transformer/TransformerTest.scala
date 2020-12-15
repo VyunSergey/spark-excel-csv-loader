@@ -5,7 +5,7 @@ import com.vyunsergey.sparkexcelcsvloader.data.TestDataFrame
 import com.vyunsergey.sparkexcelcsvloader.reader.ReaderConfig
 import com.vyunsergey.sparkexcelcsvloader.spark.{SparkConfig, SparkConnection}
 import org.apache.log4j.{LogManager, Logger}
-import org.apache.spark.sql.types.{ArrayType, LongType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.{ArrayType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -118,6 +118,11 @@ class TransformerTest extends AnyFlatSpec with Matchers {
 
   "splitStructColumn" should "extract all sub-columns in struct column" in {
     def check(df: DataFrame): Unit = {
+      def levelStructType(schema: StructType): Int = schema.map {
+        case StructField(_, xs: StructType, _, _) => 1 + levelStructType(xs)
+        case _ => 0
+      }.max
+
       val structDf: DataFrame = Transformer.explodeColumn(
         Transformer.arrayColumn(
           Transformer.numericColumns(
@@ -134,7 +139,40 @@ class TransformerTest extends AnyFlatSpec with Matchers {
       }.sum
 
       splitDf.columns.length shouldBe expectedColumnsNum
+      levelStructType(splitDf.schema) shouldBe levelStructType(structDf.schema) - 1
       splitDf.count shouldBe structDf.count
+    }
+
+    check(dataFrames.test1Df)
+    check(dataFrames.test2Df)
+    check(dataFrames.test3Df)
+    check(dataFrames.integersDf)
+    check(dataFrames.numbersDf)
+    check(dataFrames.decimalDf)
+    check(dataFrames.stringsDf)
+    check(dataFrames.dateTimeDf)
+    check(dataFrames.randomDf)
+  }
+
+  "convertStructColumn" should "concat all sub-columns in struct column into string column" in {
+    def check(df: DataFrame): Unit = {
+      def findStructType(field: StructField): Boolean = field.dataType match {
+        case StructType(_) => true
+        case _ => false
+      }
+
+      val structDf: DataFrame = Transformer.explodeColumn(
+        Transformer.arrayColumn(
+          Transformer.numericColumns(
+            Transformer.stringColumns(df)
+          )
+        )
+      )
+      val convDf: DataFrame = Transformer.convertStructColumn(structDf)
+
+      convDf.columns.length shouldBe structDf.columns.length
+      convDf.schema.exists(findStructType) shouldBe false
+      convDf.count shouldBe structDf.count
     }
 
     check(dataFrames.test1Df)
@@ -150,18 +188,11 @@ class TransformerTest extends AnyFlatSpec with Matchers {
 
   "keyValueColumns" should "convert all data in DataFrame to (key, value)" in {
     def check(df: DataFrame): Unit = {
-      def findKeyField(field: StructField): Boolean = field.dataType match {
-        case StructType(arr) => arr.toList match {
-          case StructField(_, LongType, _, _) :: StructField(_, LongType, _, _) :: Nil => true
-          case _ => false
-        }
-        case _ => false
-      }
+      def findKeyField(field: StructField): Boolean =
+        field.name == "key" && field.dataType == StringType
 
-      def findValueField(field: StructField): Boolean = field.dataType match {
-        case StringType => true
-        case _ => false
-      }
+      def findValueField(field: StructField): Boolean =
+        field.name == "val" && field.dataType == StringType
 
       val keyValDf = Transformer.keyValueColumns(df)
 
