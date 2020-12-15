@@ -17,6 +17,8 @@ object Writer {
       .mode(writerConf.saveMode())
       .options(writerConf.csvOptions())
       .save(path.toUri.getPath)
+
+    logger.info(s"Write .csv finish successfully")
   }
 
   def excel[A](ds: Dataset[A])(path: Path)(writerConf: WriterConfig)
@@ -30,5 +32,7 @@ object Writer {
       .mode(writerConf.saveMode())
       .options(writerConf.excelOptions())
       .save(path.toUri.getPath)
+
+    logger.info(s"Write Excel finish successfully")
   }
 }
