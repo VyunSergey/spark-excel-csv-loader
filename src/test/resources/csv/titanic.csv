@@ -357,7 +357,7 @@ Name,PClass,Age,Sex,Survived
 "Bystrom, Mrs Caroli",2nd,42,female,1
 "Caldwell, Mr Albert Francis",2nd,26,male,1
 "Caldwell, Mrs Albert Francis (Sylvia Mae Harbaugh)",2nd,26,female,1
-"Caldwell, Master Alden Gates",2nd,0.83,male,1
+"Caldwell, Master Alden Gates",2nd,83,male,1
 "Cameron, Miss Clear",2nd,31,female,1
 "Campbell, Mr William",2nd,,male,0
 "Carbines, Mr William",2nd,19,male,0
@@ -543,7 +543,7 @@ Jacobsohn Mr Samuel,,,male,0
 "Renouf, Mrs Peter Henry (Lillian Jefferys)",2nd,30,female,1
 "Reyldo, Mrs Encarcion",2nd,28,female,1
 "Richard, Mr Emil",2nd,23,male,0
-"Richards, Master George Sidney",2nd,0.8,male,1
+"Richards, Master George Sidney",2nd,8,male,1
 "Richards, Mrs Sidney (Emily Hocking)",2nd,25,female,1
 "Richards, Master William Rowe",2nd,3,male,1
 "Ridsdale, Miss Lucy",2nd,50,female,1
@@ -615,7 +615,7 @@ Jacobsohn Mr Samuel,,,male,0
 "Ahmed, Mr Ali",3rd,24,male,0
 "Aijo-Nirva, Mr Isak",3rd,41,male,0
 "Aks, Mrs Sam (Leah Rosen)",3rd,18,female,1
-"Aks, Master Philip",3rd,0.83,male,1
+"Aks, Master Philip",3rd,83,male,1
 "Alexander, Mr William",3rd,23,male,0
 "Alhomaki, Mr Ilmari Rudolf",3rd,20,male,0
 "Ali, Mr William",3rd,25,male,0
@@ -750,7 +750,7 @@ Jacobsohn Mr Samuel,,,male,0
 "Daly, Miss Marcella",3rd,30,female,1
 "Danbom, Mr Ernst Gilbert",3rd,34,male,0
 "Danbom, Mrs Ernst Gilbert (An Sigrid Maria Brogren)",3rd,28,female,0
-"Danbom, Master Gilbert Sigvard Emanuel",3rd,0.33,male,0
+"Danbom, Master Gilbert Sigvard Emanuel",3rd,33,male,0
 "Danoff, Mr Yoto",3rd,27,male,0
 "Dantchoff, Mr Khristo",3rd,25,male,0
 "Davies, Mr Alfred",3rd,24,male,0
@@ -762,7 +762,7 @@ Jacobsohn Mr Samuel,,,male,0
 "Dean, Mr Bertram",3rd,26,male,0
 "Dean, Mrs Bertram (Eva)",3rd,33,female,1
 "Dean, Master Bertram Vere",3rd,1,male,1
-"Dean, Miss Elizabeth Gladys (Millve)",3rd,0.17,female,1
+"Dean, Miss Elizabeth Gladys (Millve)",3rd,17,female,1
 "Delalic, Mr Regyo",3rd,25,male,0
 "De Messemaeker, Mr William Joseph",3rd,36,male,1
 "De Messemaeker, Mrs William Joseph (An)",3rd,36,female,1
@@ -935,7 +935,7 @@ Jacobsohn Mr Samuel,,,male,0
 "Kink, Miss Louise Gretchen",3rd,4,female,1
 "Kink, Miss Maria",3rd,22,female,0
 "Kink, Mr Vincenz",3rd,26,male,0
-"Klasen, Miss Gertrud Emilia",3rd,1.5,female,0
+"Klasen, Miss Gertrud Emilia",3rd,15,female,0
 "Klasen, Mrs Hulda Kristi",3rd,36,female,0
 "Klasen, Mr Klas Albin",3rd,18,male,0
 "Kraeff, Mr Theodor",3rd,,male,0
@@ -1187,7 +1187,7 @@ Jacobsohn Mr Samuel,,,male,0
 "Samaan, Mr Han",3rd,,male,0
 "Samaan, Mr Youssef",3rd,,male,0
 "Sandstrom, Miss Hjalmar",3rd,,female,1
-"Sandstrom, Miss Beatrice Irene",3rd,1.5,female,0
+"Sandstrom, Miss Beatrice Irene",3rd,15,female,0
 "Sandstrom, Miss Marguerite Rut",3rd,,female,0
 "Sather, Simon Sivertsen",3rd,,male,0
 "Saundercock, William Henry",3rd,,male,0
