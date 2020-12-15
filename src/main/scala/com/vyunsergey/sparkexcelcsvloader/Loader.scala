@@ -9,15 +9,19 @@ import com.vyunsergey.sparkexcelcsvloader.writer.{Writer, WriterConfig}
 import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
+import java.nio.file.Path
+
 object Loader extends App {
   lazy val arguments = Arguments(args)
   lazy val mode = arguments.mode()
-  lazy val srcPath = arguments.srcPath()
-  lazy val tgtPath = arguments.tgtPath()
+  lazy val srcPath = Configuration.convertPath(arguments.srcPath())
+  lazy val tgtPath = Configuration.convertPath(arguments.tgtPath())
+
   lazy val conf = Configuration.config
   lazy val sparkConf = SparkConfig.make(conf)
   lazy val readerConf: ReaderConfig = ReaderConfig.make(conf)
   lazy val writerConf: WriterConfig = WriterConfig.make(conf)
+
   implicit lazy val spark: SparkSession = SparkConnection.make("Key-Value Loader")(sparkConf)
   implicit lazy val logger: Logger = LogManager.getLogger(getClass)
 
@@ -25,19 +29,21 @@ object Loader extends App {
 
   program(mode, srcPath, tgtPath)(readerConf, writerConf)
 
+  logger.info(s"Finish Spark application. Stopping Spark.")
+
   spark.stop()
 
-  def program(mode: String, srcPath: String, tgtPath: String)
+  def program(mode: String, srcPath: Path, tgtPath: Path)
              (readerConf: ReaderConfig, writerConf: WriterConfig)
              (implicit spark: SparkSession, logger: Logger): Unit = {
     val data: DataFrame =
-      if (mode == "csv") Reader.csv(Configuration.convertPath(srcPath))(readerConf)
-      else Reader.excel(Configuration.convertPath(srcPath))(readerConf)
+      if (mode == "csv") Reader.csv(srcPath)(readerConf)
+      else Reader.excel(srcPath)(readerConf)
 
     val metaData = Transformer.metaColumns(data)
     val kvData =Transformer.keyValueColumns(data)
 
-    Writer.csv(metaData)(Configuration.convertPath(tgtPath).resolve("meta"))(writerConf)
-    Writer.csv(kvData)(Configuration.convertPath(tgtPath).resolve("data"))(writerConf)
+    Writer.csv(metaData)(tgtPath.resolve("meta"))(writerConf)
+    Writer.csv(kvData)(tgtPath.resolve("data"))(writerConf)
   }
 }
