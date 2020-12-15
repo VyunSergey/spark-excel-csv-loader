@@ -37,7 +37,7 @@ object Loader extends App {
     val metaData = Transformer.metaColumns(data)
     val kvData =Transformer.keyValueColumns(data)
 
-    Writer.csv(metaData)(Configuration.convertPath(tgtPath))(writerConf)
-    Writer.csv(kvData)(Configuration.convertPath(tgtPath))(writerConf)
+    Writer.csv(metaData)(Configuration.convertPath(tgtPath).resolve("meta"))(writerConf)
+    Writer.csv(kvData)(Configuration.convertPath(tgtPath).resolve("data"))(writerConf)
   }
 }
