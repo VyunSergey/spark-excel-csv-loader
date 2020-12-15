@@ -11,10 +11,13 @@ object Reader {
     logger.info(s"Read .csv file from path: ${path.toUri.getPath}")
     logger.info(s"Reader options:\n${readerConf.csvOptions().mkString("\n")}")
 
-    spark.read
+    val df = spark.read
       .format("com.databricks.spark.csv")
       .options(readerConf.csvOptions())
       .load(path.toUri.getPath)
+
+    logger.info(s"Read DataFrame with schema:\n${df.schema.treeString}")
+    df
   }
 
   def excel(path: Path)(readerConf: ReaderConfig)
@@ -22,9 +25,12 @@ object Reader {
     logger.info(s"Read Excel file from path: ${path.toUri.getPath}")
     logger.info(s"Reader options:\n${readerConf.excelOptions().mkString("\n")}")
 
-    spark.read
+    val df = spark.read
       .format("com.crealytics.spark.excel")
       .options(readerConf.excelOptions())
       .load(path.toUri.getPath)
+
+    logger.info(s"Read DataFrame with schema:\n${df.schema.treeString}")
+    df
   }
 }
