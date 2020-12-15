@@ -2,7 +2,7 @@ package com.vyunsergey.sparkexcelcsvloader.transformer
 
 import org.apache.log4j.Logger
 import org.apache.spark.sql.expressions.Window
-import org.apache.spark.sql.functions.{array, col, explode_outer, lit, row_number, struct}
+import org.apache.spark.sql.functions.{array, col, concat_ws, explode_outer, lit, row_number, struct}
 import org.apache.spark.sql.types.{ArrayType, DataType, LongType, StringType, StructField, StructType}
 import org.apache.spark.sql.{Column, DataFrame, SparkSession}
 
@@ -44,19 +44,17 @@ object Transformer {
    *   val metaDf = Transformer.metaColumns(ds.toDF())
    *
    *   metaDf.show(false)
-   *   // +-----+---------------+
-   *   // |  key|            val|
-   *   // +-----+---------------+
-   *   // |[1,1]|  [name,string]|
-   *   // |[1,2]|  [age,integer]|
-   *   // |[1,3]|[gender,string]|
-   *   // +-----+---------------+
+   *   // +---+---------------+
+   *   // |key|            val|
+   *   // +---+---------------+
+   *   // |1,1|  [name,string]|
+   *   // |1,2|  [age,integer]|
+   *   // |1,3|[gender,string]|
+   *   // +---+---------------+
    *
    *   metaDf.printSchema()
    *   // root
-   *   //  |-- key: struct (nullable = true)
-   *   //  |    |-- id: long (nullable = true)
-   *   //  |    |-- num: long (nullable = false)
+   *   //  |-- key: string (nullable = true)
    *   //  |-- val: string (nullable = true)
    * }}}
    */
@@ -65,11 +63,13 @@ object Transformer {
     import spark.implicits._
 
     val types: Map[String, DataType] = df.schema.map(field => field.name -> field.dataType).toMap
+    val metaNameColumnNm = "name"
+    val metaTypeColumnNm = "type"
     val metaColumnNm = "meta"
 
     val metaDf = Seq(1).toDF().select(
       types.map { case (colNm, colTp) =>
-        struct(lit(colNm), lit(colTp.typeName)).as(s"${metaColumnNm}_$colNm")
+        struct(lit(colNm).as(metaNameColumnNm), lit(colTp.typeName).as(metaTypeColumnNm)).as(s"${metaColumnNm}_$colNm")
       }.toSeq: _*
     )
     val kvDf = keyValueColumns(metaDf)
@@ -117,25 +117,23 @@ object Transformer {
    *   val kvDf = Transformer.keyValueColumns(ds.toDF())
    *
    *   kvDf.show(false)
-   *   // +-----+-------+
-   *   // |  key|    val|
-   *   // +-----+-------+
-   *   // |[1,1]|Michael|
-   *   // |[1,2]|     29|
-   *   // |[1,3]|      M|
-   *   // |[2,1]|   Sara|
-   *   // |[2,2]|     30|
-   *   // |[2,3]|      F|
-   *   // |[3,1]| Justin|
-   *   // |[3,2]|     19|
-   *   // |[3,3]|      M|
-   *   // +-----+-------+
+   *   // +---+-------+
+   *   // |key|    val|
+   *   // +---+-------+
+   *   // |1,1|Michael|
+   *   // |1,2|     29|
+   *   // |1,3|      M|
+   *   // |2,1|   Sara|
+   *   // |2,2|     30|
+   *   // |2,3|      F|
+   *   // |3,1| Justin|
+   *   // |3,2|     19|
+   *   // |3,3|      M|
+   *   // +---+-------+
    *
    *   kvDf.printSchema()
    *   // root
-   *   //  |-- key: struct (nullable = true)
-   *   //  |    |-- id: long (nullable = true)
-   *   //  |    |-- num: long (nullable = false)
+   *   //  |-- key: string (nullable = true)
    *   //  |-- val: string (nullable = true)
    * }}}
    */
@@ -146,11 +144,12 @@ object Transformer {
     val arrDf = arrayColumn(numDf)
     val expDf = explodeColumn(arrDf)
     val splDf = splitStructColumn(expDf)
+    val convDf = convertStructColumn(splDf)
 
     logger.info(s"Transform Key-Value DataFrame with schema:\n${df.schema.treeString}\n" +
-      s"to DataFrame with schema:\n${splDf.schema.treeString}")
+      s"to DataFrame with schema:\n${convDf.schema.treeString}")
 
-    splDf
+    convDf
   }
 
   /**
@@ -430,7 +429,7 @@ object Transformer {
   }
 
   /**
-   * Split all columns of StructType into separated columns of inner types.
+   * Split all inner columns of StructType into separated columns of inner types.
    *
    * == Example ==
    *
@@ -493,4 +492,68 @@ object Transformer {
     )
   }
 
+  /**
+   * Concat with `","` all inner columns of StructType into one column of StringType.
+   *
+   * == Example ==
+   *
+   * {{{
+   *   import spark.implicits._
+   *
+   *   case class PersonInfo(age: Int, gender: String)
+   *   case class Person(name: String, info: PersonInfo)
+   *
+   *   val data = Seq(
+   *     Person("Michael", PersonInfo(29, "M")),
+   *     Person("Sara", PersonInfo(30, "F")),
+   *     Person("Justin", PersonInfo(19, "M"))
+   *   )
+   *
+   *   val ds = spark.createDataset(data)
+   *
+   *   ds.show()
+   *   // +-------+------+
+   *   // |   name|  info|
+   *   // +-------+------+
+   *   // |Michael|[29,M]|
+   *   // |   Sara|[30,F]|
+   *   // | Justin|[19,M]|
+   *   // +-------+------+
+   *
+   *   ds.printSchema()
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- info: struct (nullable = true)
+   *   //  |    |-- age: integer (nullable = false)
+   *   //  |    |-- gender: string (nullable = true)
+   *
+   *   val convDf = Transformer.convertStructColumn(ds.toDF())
+   *
+   *   convDf.show()
+   *   // +-------+----+
+   *   // |   name|info|
+   *   // +-------+----+
+   *   // |Michael|29,M|
+   *   // |   Sara|30,F|
+   *   // | Justin|19,M|
+   *   // +-------+----+
+   *
+   *   convDf.printSchema()
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- info: string (nullable = true)
+   * }}}
+   */
+  def convertStructColumn(df: DataFrame)(implicit spark: SparkSession): DataFrame = {
+    def structColumnConvertor(field: StructField): Array[Column] = field match {
+      case StructField(nm, StructType(arr), _, _) => Array(concat_ws(",", arr.map { f =>
+        col(s"$nm.${f.name}").cast(StringType)
+      }: _*).as(nm))
+      case StructField(nm, _, _, _) => Array(col(nm))
+    }
+
+    df.select(
+      df.schema.flatMap(structColumnConvertor): _*
+    )
+  }
 }
