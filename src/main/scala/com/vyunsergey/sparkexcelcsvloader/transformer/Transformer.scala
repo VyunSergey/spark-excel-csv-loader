@@ -3,7 +3,7 @@ package com.vyunsergey.sparkexcelcsvloader.transformer
 import org.apache.log4j.Logger
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions.{array, col, concat_ws, explode_outer, lit, row_number, struct}
-import org.apache.spark.sql.types.{ArrayType, DataType, LongType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.{ArrayType, LongType, StringType, StructField, StructType}
 import org.apache.spark.sql.{Column, DataFrame, SparkSession}
 
 object Transformer {
@@ -35,13 +35,13 @@ object Transformer {
    *   // |Justin |19 |M     |
    *   // +-------+---+------+
    *
-   *   ds.printSchema()
+   *   ds.printSchema
    *   // root
    *   //  |-- name: string (nullable = true)
    *   //  |-- age: integer (nullable = false)
    *   //  |-- gender: string (nullable = true)
    *
-   *   val metaDf = Transformer.metaColumns(ds.toDF())
+   *   val metaDf = Transformer.metaColumns(ds.toDF)
    *
    *   metaDf.show(false)
    *   // +---+---------------+
@@ -52,7 +52,7 @@ object Transformer {
    *   // |1,3|[gender,string]|
    *   // +---+---------------+
    *
-   *   metaDf.printSchema()
+   *   metaDf.printSchema
    *   // root
    *   //  |-- key: string (nullable = true)
    *   //  |-- val: string (nullable = true)
@@ -62,15 +62,14 @@ object Transformer {
                  (implicit spark: SparkSession, logger: Logger): DataFrame = {
     import spark.implicits._
 
-    val types: Map[String, DataType] = df.schema.map(field => field.name -> field.dataType).toMap
     val metaNameColumnNm = "name"
     val metaTypeColumnNm = "type"
     val metaColumnNm = "meta"
 
-    val metaDf = Seq(1).toDF().select(
-      types.map { case (colNm, colTp) =>
+    val metaDf = Seq(1).toDF.select(
+      df.schema.map { case StructField(colNm, colTp, _, _) =>
         struct(lit(colNm).as(metaNameColumnNm), lit(colTp.typeName).as(metaTypeColumnNm)).as(s"${metaColumnNm}_$colNm")
-      }.toSeq: _*
+      }: _*
     )
     val kvDf = keyValueColumns(metaDf)
 
@@ -108,13 +107,13 @@ object Transformer {
    *   // |Justin |19 |M     |
    *   // +-------+---+------+
    *
-   *   ds.printSchema()
+   *   ds.printSchema
    *   // root
    *   //  |-- name: string (nullable = true)
    *   //  |-- age: integer (nullable = false)
    *   //  |-- gender: string (nullable = true)
    *
-   *   val kvDf = Transformer.keyValueColumns(ds.toDF())
+   *   val kvDf = Transformer.keyValueColumns(ds.toDF)
    *
    *   kvDf.show(false)
    *   // +---+-------+
@@ -131,7 +130,7 @@ object Transformer {
    *   // |3,3|      M|
    *   // +---+-------+
    *
-   *   kvDf.printSchema()
+   *   kvDf.printSchema
    *   // root
    *   //  |-- key: string (nullable = true)
    *   //  |-- val: string (nullable = true)
@@ -179,13 +178,13 @@ object Transformer {
    *   // |Justin |19 |M     |
    *   // +-------+---+------+
    *
-   *   ds.printSchema()
+   *   ds.printSchema
    *   // root
    *   //  |-- name: string (nullable = true)
    *   //  |-- age: integer (nullable = false)
    *   //  |-- gender: string (nullable = true)
    *
-   *   val strDf = Transformer.stringColumns(ds.toDF())
+   *   val strDf = Transformer.stringColumns(ds.toDF)
    *
    *   strDf.show(false)
    *   // +-------+---+------+
@@ -196,7 +195,7 @@ object Transformer {
    *   // | Justin| 19|     M|
    *   // +-------+---+------+
    *
-   *   strDf.printSchema()
+   *   strDf.printSchema
    *   // root
    *   //  |-- name: string (nullable = true)
    *   //  |-- age: string (nullable = false)
@@ -204,12 +203,9 @@ object Transformer {
    * }}}
    */
   def stringColumns(df: DataFrame)(implicit spark: SparkSession): DataFrame = {
-    val columns: Array[String] = df.columns
-    val types: Map[String, DataType] = df.schema.map(field => field.name -> field.dataType).toMap
-
     df.select(
-      columns.map { colNm =>
-        if (types.getOrElse(colNm, StringType) == StringType) col(colNm).as(colNm)
+      df.schema.map { case StructField(colNm, colTp, _, _) =>
+        if (colTp == StringType) col(colNm).as(colNm)
         else col(colNm).cast(StringType).as(colNm)
       }: _*
     )
@@ -242,13 +238,13 @@ object Transformer {
    *   // |Justin |19 |M     |
    *   // +-------+---+------+
    *
-   *   ds.printSchema()
+   *   ds.printSchema
    *   // root
    *   //  |-- name: string (nullable = true)
    *   //  |-- age: integer (nullable = false)
    *   //  |-- gender: string (nullable = true)
    *
-   *   val numDf = Transformer.numericColumns(ds.toDF())
+   *   val numDf = Transformer.numericColumns(ds.toDF)
    *
    *   numDf.show()
    *   // +---------------+----------+----------+
@@ -259,7 +255,7 @@ object Transformer {
    *   // | [[3,1],Justin]|[[3,2],19]| [[3,3],M]|
    *   // +---------------+----------+----------+
    *
-   *   numDf.printSchema()
+   *   numDf.printSchema
    *   // root
    *   //  |-- key_name: struct (nullable = false)
    *   //  |    |-- key: struct (nullable = false)
@@ -326,13 +322,13 @@ object Transformer {
    *   // |Justin |19 |M     |
    *   // +-------+---+------+
    *
-   *   ds.printSchema()
+   *   ds.printSchema
    *   // root
    *   //  |-- name: string (nullable = true)
    *   //  |-- age: string (nullable = true)
    *   //  |-- gender: string (nullable = true)
    *
-   *   val arrDf = Transformer.arrayColumn(ds.toDF())
+   *   val arrDf = Transformer.arrayColumn(ds.toDF)
    *
    *   arrDf.show()
    *   // +----------------+
@@ -343,18 +339,17 @@ object Transformer {
    *   // | [Justin, 19, M]|
    *   // +----------------+
    *
-   *   arrDf.printSchema()
+   *   arrDf.printSchema
    *   // root
    *   //  |-- arr: array (nullable = false)
    *   //  |    |-- element: string (containsNull = true)
    * }}}
    */
   def arrayColumn(df: DataFrame)(implicit spark: SparkSession): DataFrame = {
-    val columns: Array[String] = df.columns
     val arrColumnNm = "arr"
 
     df.select(
-      array(columns.map(col): _*).as(arrColumnNm)
+      array(df.columns.map(col): _*).as(arrColumnNm)
     )
   }
 
@@ -386,7 +381,7 @@ object Transformer {
    *   // |[[Michael,29,M], [Sara,30,F], [Justin,19,M]]|
    *   // +--------------------------------------------+
    *
-   *   ds.printSchema()
+   *   ds.printSchema
    *   // root
    *   //  |-- persons: array (nullable = true)
    *   //  |    |-- element: struct (containsNull = true)
@@ -394,7 +389,7 @@ object Transformer {
    *   //  |    |    |-- age: integer (nullable = false)
    *   //  |    |    |-- gender: string (nullable = true)
    *
-   *   val expDf = Transformer.explodeColumn(ds.toDF())
+   *   val expDf = Transformer.explodeColumn(ds.toDF)
    *
    *   expDf.show()
    *   // +--------------+
@@ -405,7 +400,7 @@ object Transformer {
    *   // | [Justin,19,M]|
    *   // +--------------+
    *
-   *   expDf.printSchema()
+   *   expDf.printSchema
    *   // root
    *   //  |-- explode: struct (nullable = true)
    *   //  |    |-- name: string (nullable = true)
@@ -456,14 +451,14 @@ object Transformer {
    *   // | Justin|[19,M]|
    *   // +-------+------+
    *
-   *   ds.printSchema()
+   *   ds.printSchema
    *   // root
    *   //  |-- name: string (nullable = true)
    *   //  |-- info: struct (nullable = true)
    *   //  |    |-- age: integer (nullable = false)
    *   //  |    |-- gender: string (nullable = true)
    *
-   *   val splitDf = Transformer.splitStructColumn(ds.toDF())
+   *   val splitDf = Transformer.splitStructColumn(ds.toDF)
    *
    *   splitDf.show()
    *   // +-------+---+------+
@@ -474,7 +469,7 @@ object Transformer {
    *   // | Justin| 19|     M|
    *   // +-------+---+------+
    *
-   *   splitDf.printSchema()
+   *   splitDf.printSchema
    *   // root
    *   //  |-- name: string (nullable = true)
    *   //  |-- age: integer (nullable = true)
@@ -520,14 +515,14 @@ object Transformer {
    *   // | Justin|[19,M]|
    *   // +-------+------+
    *
-   *   ds.printSchema()
+   *   ds.printSchema
    *   // root
    *   //  |-- name: string (nullable = true)
    *   //  |-- info: struct (nullable = true)
    *   //  |    |-- age: integer (nullable = false)
    *   //  |    |-- gender: string (nullable = true)
    *
-   *   val convDf = Transformer.convertStructColumn(ds.toDF())
+   *   val convDf = Transformer.convertStructColumn(ds.toDF)
    *
    *   convDf.show()
    *   // +-------+----+
@@ -538,7 +533,7 @@ object Transformer {
    *   // | Justin|19,M|
    *   // +-------+----+
    *
-   *   convDf.printSchema()
+   *   convDf.printSchema
    *   // root
    *   //  |-- name: string (nullable = true)
    *   //  |-- info: string (nullable = true)
