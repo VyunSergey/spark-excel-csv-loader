@@ -40,8 +40,8 @@ object Loader extends App {
       if (mode == "csv") Reader.csv(srcPath)(readerConf)
       else Reader.excel(srcPath)(readerConf)
 
-    val metaData = Transformer.metaColumns(data)
-    val kvData =Transformer.keyValueColumns(data)
+    val metaData = Transformer.metaColumns(data, srcPath.getFileName.toString)
+    val kvData = Transformer.keyValueColumns(data)
 
     Writer.csv(metaData)(tgtPath.resolve("meta"))(writerConf)
     Writer.csv(kvData)(tgtPath.resolve("data"))(writerConf)

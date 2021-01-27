@@ -2,7 +2,7 @@ package com.vyunsergey.sparkexcelcsvloader.transformer
 
 import org.apache.log4j.Logger
 import org.apache.spark.sql.expressions.Window
-import org.apache.spark.sql.functions.{array, col, concat_ws, explode_outer, lit, row_number, struct}
+import org.apache.spark.sql.functions.{array, col, concat_ws, explode_outer, lit, regexp_replace, row_number, struct}
 import org.apache.spark.sql.types.{ArrayType, LongType, StringType, StructField, StructType}
 import org.apache.spark.sql.{Column, DataFrame, SparkSession}
 
@@ -41,15 +41,16 @@ object Transformer {
    *   //  |-- age: integer (nullable = false)
    *   //  |-- gender: string (nullable = true)
    *
-   *   val metaDf = Transformer.metaColumns(ds.toDF)
+   *   val metaDf = Transformer.metaColumns(ds.toDF, "Person")
    *
    *   metaDf.show(false)
    *   // +---+---------------+
    *   // |key|            val|
    *   // +---+---------------+
-   *   // |1,1|  [name,string]|
-   *   // |1,2|  [age,integer]|
-   *   // |1,3|[gender,string]|
+   *   // |0,0|         Person|
+   *   // |0,1|  [name,string]|
+   *   // |0,2|  [age,integer]|
+   *   // |0,3|[gender,string]|
    *   // +---+---------------+
    *
    *   metaDf.printSchema
@@ -58,25 +59,38 @@ object Transformer {
    *   //  |-- val: string (nullable = true)
    * }}}
    */
-  def metaColumns(df: DataFrame)
+  def metaColumns(df: DataFrame, name: String)
                  (implicit spark: SparkSession, logger: Logger): DataFrame = {
     import spark.implicits._
 
     val metaNameColumnNm = "name"
     val metaTypeColumnNm = "type"
     val metaColumnNm = "meta"
+    val sep = ","
 
-    val metaDf = Seq(1).toDF.select(
+    val typesDf = Seq(1).toDF.select(
       df.schema.map { case StructField(colNm, colTp, _, _) =>
         struct(lit(colNm).as(metaNameColumnNm), lit(colTp.typeName).as(metaTypeColumnNm)).as(s"${metaColumnNm}_$colNm")
       }: _*
     )
-    val kvDf = keyValueColumns(metaDf)
+    val kvDf = keyValueColumns(typesDf)
+
+    val metaDf = kvDf.select(
+      regexp_replace(col("key"), s".*$sep", s"0$sep").as("key"),
+      col("val")
+    ).union(
+      Seq(1).toDF.select(
+        lit("0,0").as("key"),
+        lit(name).as("val")
+      )
+    ).orderBy(
+      regexp_replace(col("key"), "\\D", "").cast(LongType).asc
+    )
 
     logger.info(s"Transform Metadata Key-Value DataFrame with schema:\n${df.schema.treeString}\n" +
-      s"to DataFrame with schema:\n${kvDf.schema.treeString}")
+      s"to DataFrame with schema:\n${metaDf.schema.treeString}")
 
-    kvDf
+    metaDf
   }
 
   /**

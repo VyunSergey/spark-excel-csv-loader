@@ -212,4 +212,36 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     check(dataFrames.dateTimeDf)
     check(dataFrames.randomDf)
   }
+
+  "metaColumns" should "convert all data in DataFrame to meta data in (key, value)" in {
+    def check(df: DataFrame): Unit = {
+      def findKeyField(field: StructField): Boolean =
+        field.name == "key" && field.dataType == StringType
+
+      def findValueField(field: StructField): Boolean =
+        field.name == "val" && field.dataType == StringType
+
+      val metaDf = Transformer.metaColumns(df, "test_name")
+
+      println(metaDf.schema.treeString)
+      println(metaDf.columns.mkString("Array(", ", ", ")"))
+      println(metaDf.count)
+      println(metaDf.show(20, truncate = false))
+
+      metaDf.columns.length shouldBe 2
+      metaDf.schema.exists(findKeyField) shouldBe true
+      metaDf.schema.exists(findValueField) shouldBe true
+      metaDf.count shouldBe df.columns.length + 1
+    }
+
+    check(dataFrames.test1Df)
+    check(dataFrames.test2Df)
+    check(dataFrames.test3Df)
+    check(dataFrames.integersDf)
+    check(dataFrames.numbersDf)
+    check(dataFrames.decimalDf)
+    check(dataFrames.stringsDf)
+    check(dataFrames.dateTimeDf)
+    check(dataFrames.randomDf)
+  }
 }
