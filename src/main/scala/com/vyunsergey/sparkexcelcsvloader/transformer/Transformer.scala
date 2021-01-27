@@ -83,9 +83,10 @@ object Transformer {
         lit("0,0").as("key"),
         lit(name).as("val")
       )
-    ).orderBy(
-      regexp_replace(col("key"), "\\D", "").cast(LongType).asc
-    )
+    ).repartition(1)
+      .sortWithinPartitions(
+        regexp_replace(col("key"), "\\D", "").cast(LongType).asc
+      )
 
     logger.info(s"Transform Metadata Key-Value DataFrame with schema:\n${df.schema.treeString}\n" +
       s"to DataFrame with schema:\n${metaDf.schema.treeString}")
