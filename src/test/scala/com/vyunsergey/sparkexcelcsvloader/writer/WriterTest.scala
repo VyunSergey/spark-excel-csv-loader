@@ -23,7 +23,7 @@ class WriterTest extends AnyFlatSpec with Matchers {
   "Writer" should "correctly write to .csv file" in {
     def check(df: DataFrame)(path: Path)
              (writerConf: WriterConfig)(readerConf: ReaderConfig): Unit = {
-      Writer.csv(df)(path, 1)(writerConf)
+      Writer.csv(df)(path, Some(1))(writerConf)
 
       val resDf: DataFrame = Reader.csv(path)(readerConf)
 

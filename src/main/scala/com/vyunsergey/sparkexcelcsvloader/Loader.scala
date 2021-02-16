@@ -15,7 +15,7 @@ import scala.util.Try
 object Loader extends App {
   lazy val arguments = Arguments(args)
   lazy val mode = arguments.mode()
-  lazy val numParts = arguments.numParts()
+  lazy val numParts = arguments.numParts.toOption
   lazy val srcPath = Configuration.convertPath(arguments.srcPath())
   lazy val tgtPath = Configuration.convertPath(arguments.tgtPath())
 
@@ -35,7 +35,7 @@ object Loader extends App {
 
   spark.stop()
 
-  def program(mode: String, srcPath: Path, tgtPath: Path, numParts: Int)
+  def program(mode: String, srcPath: Path, tgtPath: Path, numParts: Option[Int])
              (readerConf: ReaderConfig, writerConf: WriterConfig)
              (implicit spark: SparkSession, logger: Logger): Unit = {
     val defaultPartitionsNum: Int = spark.conf.getOption("spark.sql.shuffle.partitions")
@@ -51,7 +51,7 @@ object Loader extends App {
     val metaData = Transformer.metaColumns(data, srcPath.getFileName.toString)
     val kvData = Transformer.keyValueColumns(data)
 
-    Writer.csv(metaData)(tgtPath.resolve("meta"), 1)(writerConf)
+    Writer.csv(metaData)(tgtPath.resolve("meta"), Some(1))(writerConf)
     Writer.csv(kvData)(tgtPath.resolve("data"), numParts)(writerConf)
   }
 }
