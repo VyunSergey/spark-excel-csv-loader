@@ -10,10 +10,12 @@ import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import java.nio.file.Path
+import scala.util.Try
 
 object Loader extends App {
   lazy val arguments = Arguments(args)
   lazy val mode = arguments.mode()
+  lazy val numParts = arguments.numParts()
   lazy val srcPath = Configuration.convertPath(arguments.srcPath())
   lazy val tgtPath = Configuration.convertPath(arguments.tgtPath())
 
@@ -27,23 +29,29 @@ object Loader extends App {
 
   logger.info(s"Spark Version: ${spark.version}")
 
-  program(mode, srcPath, tgtPath)(readerConf, writerConf)
+  program(mode, srcPath, tgtPath, numParts)(readerConf, writerConf)
 
   logger.info(s"Finish Spark application. Stopping Spark.")
 
   spark.stop()
 
-  def program(mode: String, srcPath: Path, tgtPath: Path)
+  def program(mode: String, srcPath: Path, tgtPath: Path, numParts: Int)
              (readerConf: ReaderConfig, writerConf: WriterConfig)
              (implicit spark: SparkSession, logger: Logger): Unit = {
+    val defaultPartitionsNum: Int = spark.conf.getOption("spark.sql.shuffle.partitions")
+      .orElse(sparkConf.options().get("spark.sql.shuffle.partitions"))
+      .flatMap(x => Try(x.toInt).toOption)
+      .getOrElse(100)
+
     val data: DataFrame =
-      if (mode == "csv") Reader.csv(srcPath)(readerConf)
-      else Reader.excel(srcPath)(readerConf)
+      (if (mode == "csv") Reader.csv(srcPath)(readerConf)
+       else Reader.excel(srcPath)(readerConf)
+        ).repartition(defaultPartitionsNum)
 
     val metaData = Transformer.metaColumns(data, srcPath.getFileName.toString)
     val kvData = Transformer.keyValueColumns(data)
 
-    Writer.csv(metaData)(tgtPath.resolve("meta"))(writerConf)
-    Writer.csv(kvData)(tgtPath.resolve("data"))(writerConf)
+    Writer.csv(metaData)(tgtPath.resolve("meta"), 1)(writerConf)
+    Writer.csv(kvData)(tgtPath.resolve("data"), numParts)(writerConf)
   }
 }
