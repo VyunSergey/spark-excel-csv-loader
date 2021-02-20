@@ -1,10 +1,10 @@
 package com.vyunsergey.sparkexcelcsvloader.transformer
 
 import org.apache.log4j.Logger
-import org.apache.spark.sql.expressions.Window
+import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions.{array, col, concat_ws, explode_outer, lit, regexp_replace, row_number, struct}
-import org.apache.spark.sql.types.{ArrayType, LongType, StringType, StructField, StructType}
-import org.apache.spark.sql.{Column, DataFrame, SparkSession}
+import org.apache.spark.sql.types.{ArrayType, IntegerType, LongType, StringType, StructField, StructType}
+import org.apache.spark.sql.{Column, DataFrame, Row, SparkSession}
 
 object Transformer {
   /**
@@ -295,15 +295,34 @@ object Transformer {
     val numColumnNm = "num"
     val valColumnNm = "val"
     val structColumnNm = "key"
+    val partColumnNm = "part"
 
-    df.select(
-        columns.map(nm => col(nm).as(s"__$nm")): _*
-      )
-      .withColumn(keyColumnNm, row_number().over(Window.orderBy(lit(1))).cast(LongType))
+    val partitionSize = df.rdd.mapPartitions(rows => Iterator(rows.length)).collect.max
+    val dfRenamed = df.select(
+      columns.map(nm => col(nm).as(s"__$nm")): _*
+    )
+    val dfPart = spark.createDataFrame(
+      dfRenamed.rdd.mapPartitionsWithIndex(
+        preservesPartitioning = true,
+        f = { case (index, rows) =>
+          rows.map { row =>
+            Row.fromSeq(row.toSeq :+ index)
+          }
+        }
+      ),
+      dfRenamed.schema
+        .add(StructField(partColumnNm, IntegerType, nullable = false))
+    )
+
+    val window: WindowSpec = Window.partitionBy(col(partColumnNm)).orderBy(lit(1))
+    val keyColumn: Column = col(partColumnNm).cast(IntegerType) * lit(partitionSize) + col(keyColumnNm)
+
+    dfPart
+      .withColumn(keyColumnNm, row_number().over(window).cast(LongType))
       .select(
         columns.zipWithIndex.map { case (colNm, i) =>
           struct(
-            struct(col(keyColumnNm), lit(i + 1).cast(LongType).as(numColumnNm)).as(structColumnNm),
+            struct(keyColumn, lit(i + 1).cast(LongType).as(numColumnNm)).as(structColumnNm),
             col(s"__$colNm").as(valColumnNm)
           ).as(s"${structColumnNm}_$colNm")
         }: _*
