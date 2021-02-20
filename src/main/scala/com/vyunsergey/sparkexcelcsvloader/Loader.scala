@@ -46,12 +46,12 @@ object Loader extends App {
     val data: DataFrame =
       (if (mode == "csv") Reader.csv(srcPath)(readerConf)
        else Reader.excel(srcPath)(readerConf)
-        ).repartition(defaultPartitionsNum)
+      ).repartition(numParts.getOrElse(defaultPartitionsNum))
 
     val metaData = Transformer.metaColumns(data, srcPath.getFileName.toString)
     val kvData = Transformer.keyValueColumns(data)
 
     Writer.csv(metaData)(tgtPath.resolve("meta"), Some(1))(writerConf)
-    Writer.csv(kvData)(tgtPath.resolve("data"), numParts)(writerConf)
+    Writer.csv(kvData)(tgtPath.resolve("data"), None)(writerConf)
   }
 }
