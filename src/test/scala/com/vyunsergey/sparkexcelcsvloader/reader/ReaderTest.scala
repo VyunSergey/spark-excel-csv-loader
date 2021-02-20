@@ -30,7 +30,7 @@ class ReaderTest extends AnyFlatSpec with Matchers {
       Map("reader.csv.header" -> "true",
         "reader.csv.delimiter" -> ";",
         "reader.csv.inferSchema" -> "true")
-    )(3, 3)
+    )(3, 10)
 
     check(dataFrames.test2Path)(readerConf ++
       Map("reader.csv.header" -> "true",
