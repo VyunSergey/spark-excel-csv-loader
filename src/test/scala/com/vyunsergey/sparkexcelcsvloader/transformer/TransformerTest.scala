@@ -5,6 +5,7 @@ import com.vyunsergey.sparkexcelcsvloader.data.TestDataFrame
 import com.vyunsergey.sparkexcelcsvloader.reader.ReaderConfig
 import com.vyunsergey.sparkexcelcsvloader.spark.{SparkConfig, SparkConnection}
 import org.apache.log4j.{LogManager, Logger}
+import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.{ArrayType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -40,6 +41,71 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     check(dataFrames.stringsDf)
     check(dataFrames.dateTimeDf)
     check(dataFrames.randomDf)
+  }
+
+  "prefixColumns" should "add a prefix to all columns of DataFrame" in {
+    def check(df: DataFrame, prefix: String = "__"): Unit = {
+      val prefDf = Transformer.prefixColumns(df, prefix)
+
+      prefDf.columns.length shouldBe df.columns.length
+      prefDf.count shouldBe df.count
+      prefDf.columns.zip(df.columns).foreach { case (prefNm, nm) =>
+        prefNm shouldBe prefix + nm
+      }
+    }
+
+    check(dataFrames.test1Df)
+    check(dataFrames.test2Df)
+    check(dataFrames.test3Df)
+    check(dataFrames.integersDf)
+    check(dataFrames.numbersDf)
+    check(dataFrames.decimalDf)
+    check(dataFrames.stringsDf)
+    check(dataFrames.dateTimeDf)
+    check(dataFrames.randomDf)
+  }
+
+  "partitionsLength" should "correctly return all partitions with length of DataFrame" in {
+    def check(df: DataFrame, partitions: Int): Unit = {
+      val parts = Transformer.partitionsLength(df)
+
+      parts.length shouldBe partitions
+    }
+
+    check(dataFrames.test1Df.repartition(1), 1)
+    check(dataFrames.test2Df.repartition(2), 2)
+    check(dataFrames.test3Df.repartition(3), 3)
+    check(dataFrames.integersDf.repartition(10), 10)
+    check(dataFrames.numbersDf.repartition(20), 20)
+    check(dataFrames.decimalDf.repartition(30), 30)
+    check(dataFrames.stringsDf.repartition(40), 40)
+    check(dataFrames.dateTimeDf.repartition(50), 50)
+    check(dataFrames.randomDf.repartition(100), 100)
+  }
+
+  "addPartitionColumn" should "correctly add column with partition index to DataFrame" in {
+    def check(df: DataFrame, partitions: Int)(implicit spark: SparkSession): Unit = {
+      import spark.implicits._
+
+      val partsDf = Transformer.addPartitionColumn(df)
+      val partitionsList = List.range(0, partitions)
+
+      partsDf.columns.length shouldBe df.columns.length + 1
+      partsDf.count shouldBe df.count
+      partsDf.select(col(partsDf.columns.last).as[Int]).collect.foreach { i =>
+        partitionsList.contains(i) shouldBe true
+      }
+    }
+
+    check(dataFrames.test1Df.repartition(1), 1)
+    check(dataFrames.test2Df.repartition(2), 2)
+    check(dataFrames.test3Df.repartition(3), 3)
+    check(dataFrames.integersDf.repartition(10), 10)
+    check(dataFrames.numbersDf.repartition(20), 20)
+    check(dataFrames.decimalDf.repartition(30), 30)
+    check(dataFrames.stringsDf.repartition(40), 40)
+    check(dataFrames.dateTimeDf.repartition(50), 50)
+    check(dataFrames.randomDf.repartition(100), 100)
   }
 
   "numericColumns" should "convert all columns in DataFrame to StructType with struct (Key, Column)" in {

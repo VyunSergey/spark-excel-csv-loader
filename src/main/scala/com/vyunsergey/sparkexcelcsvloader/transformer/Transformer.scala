@@ -259,9 +259,9 @@ object Transformer {
  *   //  |-- age: integer (nullable = false)
  *   //  |-- gender: string (nullable = true)
  *
- *   val strDf = Transformer.prefixColumns(ds.toDF)
+ *   val prefDf = Transformer.prefixColumns(ds.toDF)
  *
- *   strDf.show(false)
+ *   prefDf.show(false)
  *   // +---------+-----+--------+
  *   // |   __name|__age|__gender|
  *   // +---------+-----+--------+
@@ -270,7 +270,7 @@ object Transformer {
  *   // |   Justin|   19|       M|
  *   // +---------+-----+--------+
  *
- *   strDf.printSchema
+ *   prefDf.printSchema
  *   // root
  *   //  |-- __name: string (nullable = true)
  *   //  |-- __age: integer (nullable = false)
@@ -283,12 +283,146 @@ object Transformer {
     )
   }
 
+  /**
+   * Get all partitions with length of DataFrame
+   *
+   * == Example ==
+   *
+   * {{{
+   *   import spark.implicits._
+   *
+   *   case class Person(name: String, age: Int, gender: String)
+   *
+   *   val data = Seq(
+   *     Person("Michael", 29, "M"),
+   *     Person("Sara", 30, "F"),
+   *     Person("Justin", 19, "M")
+   *   )
+   *
+   *   val ds = spark.createDataset(data)
+   *
+   *   ds.show(false)
+   *   // +-------+---+------+
+   *   // |name   |age|gender|
+   *   // +-------+---+------+
+   *   // |Michael|29 |M     |
+   *   // |Sara   |30 |F     |
+   *   // |Justin |19 |M     |
+   *   // +-------+---+------+
+   *
+   *   ds.printSchema
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- age: integer (nullable = false)
+   *   //  |-- gender: string (nullable = true)
+   *
+   *   val parts1 = Transformer.partitionsLength(ds.toDF.repartition(1))
+   *   println(parts1.length)
+   *   // 1
+   *
+   *   val parts2 = Transformer.partitionsLength(ds.toDF.repartition(2))
+   *   println(parts2.length)
+   *   // 2
+   *
+   *   val parts3 = Transformer.partitionsLength(ds.toDF.repartition(3))
+   *   println(parts3.length)
+   *   // 3
+   * }}}
+   */
   def partitionsLength(df: DataFrame)(implicit spark: SparkSession): Array[(Int, Int)] = {
     df.rdd.mapPartitionsWithIndex { case (ind, rows) =>
       Iterator((ind, rows.length))
     }.collect
   }
 
+  /**
+   * Add a column with partition index to DataFrame
+   *
+   * == Example ==
+   *
+   * {{{
+   *   import spark.implicits._
+   *
+   *   case class Person(name: String, age: Int, gender: String)
+   *
+   *   val data = Seq(
+   *     Person("Michael", 29, "M"),
+   *     Person("Sara", 30, "F"),
+   *     Person("Justin", 19, "M")
+   *   )
+   *
+   *   val ds = spark.createDataset(data)
+   *
+   *   ds.show(false)
+   *   // +-------+----+------+
+   *   // |name   |age |gender|
+   *   // +-------+----+------+
+   *   // |Michael|29  |M     |
+   *   // |Sara   |30  |F     |
+   *   // |Justin |19  |M     |
+   *   // +-------+----+------+
+   *
+   *   ds.printSchema
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- age: integer (nullable = false)
+   *   //  |-- gender: string (nullable = true)
+   *
+   *   val partDf1 = Transformer.addPartitionColumn(ds.toDF.repartition(1))
+   *
+   *   partDf1.show(false)
+   *   // +-------+----+------+----+
+   *   // |name   |age |gender|part|
+   *   // +-------+----+------+----+
+   *   // |Michael|29  |M     |0   |
+   *   // |Sara   |30  |F     |0   |
+   *   // |Justin |19  |M     |0   |
+   *   // +-------+----+------+----+
+   *
+   *   partDf1.printSchema
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- age: integer (nullable = false)
+   *   //  |-- gender: string (nullable = true)
+   *   //  |-- part: integer (nullable = false)
+   *
+   *   val partDf2 = Transformer.addPartitionColumn(ds.toDF.repartition(2))
+   *
+   *   partDf2.show(false)
+   *   // +-------+----+------+----+
+   *   // |name   |age |gender|part|
+   *   // +-------+----+------+----+
+   *   // |Michael|29  |M     |0   |
+   *   // |Sara   |30  |F     |1   |
+   *   // |Justin |19  |M     |1   |
+   *   // +-------+----+------+----+
+   *
+   *   partDf2.printSchema
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- age: integer (nullable = false)
+   *   //  |-- gender: string (nullable = true)
+   *   //  |-- part: integer (nullable = false)
+   *
+   *   val partDf3 = Transformer.addPartitionColumn(ds.toDF.repartition(3))
+   *
+   *   partDf3.show(false)
+   *   // +-------+----+------+----+
+   *   // |name   |age |gender|part|
+   *   // +-------+----+------+----+
+   *   // |Michael|29  |M     |0   |
+   *   // |Sara   |30  |F     |1   |
+   *   // |Justin |19  |M     |2   |
+   *   // +-------+----+------+----+
+   *
+   *   partDf3.printSchema
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- age: integer (nullable = false)
+   *   //  |-- gender: string (nullable = true)
+   *   //  |-- part: integer (nullable = false)
+   * }}}
+   */
   def addPartitionColumn(df: DataFrame, partColumnNm: String = "part")(implicit spark: SparkSession): DataFrame = {
     spark.createDataFrame(
       df.rdd.mapPartitionsWithIndex(

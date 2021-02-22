@@ -23,14 +23,57 @@ val data = Seq(
 )
 
 val ds = spark.createDataset(data)
+//ds.show(false)
+//ds.printSchema
 
-ds.show(false)
+   val partDf1 = Transformer.addPartitionColumn(ds.toDF.repartition(1))
 
-ds.printSchema
+   partDf1.show(false)
+   // +-------+----+------+----+
+   // |name   |age |gender|part|
+   // +-------+----+------+----+
+   // |Michael|29  |M     |0   |
+   // |Sara   |30  |F     |0   |
+   // |Justin |19  |M     |0   |
+   // +-------+----+------+----+
 
-val numDf = Transformer.numericColumns(ds.toDF)
+   partDf1.printSchema
+   // root
+   //  |-- name: string (nullable = true)
+   //  |-- age: integer (nullable = false)
+   //  |-- gender: string (nullable = true)
+   //  |-- part: integer (nullable = false)
 
-numDf.show(false)
+   val partDf2 = Transformer.addPartitionColumn(ds.toDF.repartition(2))
 
-numDf.printSchema
+   partDf2.show(false)
+   // +---------+-----+--------+
+   // |   __name|__age|__gender|
+   // +---------+-----+--------+
+   // |  Michael|   29|       M|
+   // |     Sara|   30|       F|
+   // |   Justin|   19|       M|
+   // +---------+-----+--------+
 
+   partDf2.printSchema
+   // root
+   //  |-- __name: string (nullable = true)
+   //  |-- __age: integer (nullable = false)
+   //  |-- __gender: string (nullable = true)
+
+   val partDf3 = Transformer.addPartitionColumn(ds.toDF.repartition(3))
+
+   partDf3.show(false)
+   // +---------+-----+--------+
+   // |   __name|__age|__gender|
+   // +---------+-----+--------+
+   // |  Michael|   29|       M|
+   // |     Sara|   30|       F|
+   // |   Justin|   19|       M|
+   // +---------+-----+--------+
+
+   partDf3.printSchema
+   // root
+   //  |-- __name: string (nullable = true)
+   //  |-- __age: integer (nullable = false)
+   //  |-- __gender: string (nullable = true)
