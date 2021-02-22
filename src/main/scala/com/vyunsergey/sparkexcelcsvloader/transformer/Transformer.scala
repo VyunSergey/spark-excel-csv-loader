@@ -226,6 +226,84 @@ object Transformer {
     )
   }
 
+/**
+ * Add a `prefix` to all columns of DataFrame
+ *
+ * == Example ==
+ *
+ * {{{
+ *   import spark.implicits._
+ *
+ *   case class Person(name: String, age: Int, gender: String)
+ *
+ *   val data = Seq(
+ *     Person("Michael", 29, "M"),
+ *     Person("Sara", 30, "F"),
+ *     Person("Justin", 19, "M")
+ *   )
+ *
+ *   val ds = spark.createDataset(data)
+ *
+ *   ds.show(false)
+ *   // +-------+---+------+
+ *   // |name   |age|gender|
+ *   // +-------+---+------+
+ *   // |Michael|29 |M     |
+ *   // |Sara   |30 |F     |
+ *   // |Justin |19 |M     |
+ *   // +-------+---+------+
+ *
+ *   ds.printSchema
+ *   // root
+ *   //  |-- name: string (nullable = true)
+ *   //  |-- age: integer (nullable = false)
+ *   //  |-- gender: string (nullable = true)
+ *
+ *   val strDf = Transformer.prefixColumns(ds.toDF)
+ *
+ *   strDf.show(false)
+ *   // +---------+-----+--------+
+ *   // |   __name|__age|__gender|
+ *   // +---------+-----+--------+
+ *   // |  Michael|   29|       M|
+ *   // |     Sara|   30|       F|
+ *   // |   Justin|   19|       M|
+ *   // +---------+-----+--------+
+ *
+ *   strDf.printSchema
+ *   // root
+ *   //  |-- __name: string (nullable = true)
+ *   //  |-- __age: integer (nullable = false)
+ *   //  |-- __gender: string (nullable = true)
+ * }}}
+ */
+  def prefixColumns(df: DataFrame, prefix: String = "__")(implicit spark: SparkSession): DataFrame = {
+    df.select(
+      df.columns.map(nm => col(nm).as(prefix + nm)): _*
+    )
+  }
+
+  def partitionsLength(df: DataFrame)(implicit spark: SparkSession): Array[(Int, Int)] = {
+    df.rdd.mapPartitionsWithIndex { case (ind, rows) =>
+      Iterator((ind, rows.length))
+    }.collect
+  }
+
+  def addPartitionColumn(df: DataFrame, partColumnNm: String = "part")(implicit spark: SparkSession): DataFrame = {
+    spark.createDataFrame(
+      df.rdd.mapPartitionsWithIndex(
+        preservesPartitioning = true,
+        f = { case (index, rows) =>
+          rows.map { row =>
+            Row.fromSeq(row.toSeq :+ index)
+          }
+        }
+      ),
+      df.schema
+        .add(StructField(partColumnNm, IntegerType, nullable = false))
+    )
+  }
+
   /**
    * Numerate all cells of all columns with (`id`, `num`) pair where `id` - row number and `num` - column number.
    *
@@ -261,7 +339,7 @@ object Transformer {
    *
    *   val numDf = Transformer.numericColumns(ds.toDF)
    *
-   *   numDf.show()
+   *   numDf.show(false)
    *   // +---------------+----------+----------+
    *   // |       key_name|   key_age|key_gender|
    *   // +---------------+----------+----------+
@@ -290,41 +368,27 @@ object Transformer {
    *  }}}
    */
   def numericColumns(df: DataFrame)(implicit spark: SparkSession): DataFrame = {
-    val columns: Array[String] = df.columns
-    val keyColumnNm = "id"
+    val idColumnNm = "id"
     val numColumnNm = "num"
+    val keyColumnNm = "key"
     val valColumnNm = "val"
-    val structColumnNm = "key"
     val partColumnNm = "part"
 
-    val partitionSize = df.rdd.mapPartitions(rows => Iterator(rows.length)).collect.max
-    val dfRenamed = df.select(
-      columns.map(nm => col(nm).as(s"__$nm")): _*
-    )
-    val dfPart = spark.createDataFrame(
-      dfRenamed.rdd.mapPartitionsWithIndex(
-        preservesPartitioning = true,
-        f = { case (index, rows) =>
-          rows.map { row =>
-            Row.fromSeq(row.toSeq :+ index)
-          }
-        }
-      ),
-      dfRenamed.schema
-        .add(StructField(partColumnNm, IntegerType, nullable = false))
-    )
+    val partitionMaxSize = partitionsLength(df).maxBy(_._2)._2
+    val dfRenamed = prefixColumns(df)
+    val dfPart = addPartitionColumn(dfRenamed)
 
     val window: WindowSpec = Window.partitionBy(col(partColumnNm)).orderBy(lit(1))
-    val keyColumn: Column = col(partColumnNm).cast(IntegerType) * lit(partitionSize) + col(keyColumnNm)
+    val keyColumn: Column = col(partColumnNm).cast(IntegerType) * lit(partitionMaxSize) + col(idColumnNm)
 
     dfPart
-      .withColumn(keyColumnNm, row_number().over(window).cast(LongType))
+      .withColumn(idColumnNm, row_number().over(window).cast(LongType))
       .select(
-        columns.zipWithIndex.map { case (colNm, i) =>
+        df.columns.zip(dfRenamed.columns).zipWithIndex.map { case ((colNm, renamedColNm), i) =>
           struct(
-            struct(keyColumn, lit(i + 1).cast(LongType).as(numColumnNm)).as(structColumnNm),
-            col(s"__$colNm").as(valColumnNm)
-          ).as(s"${structColumnNm}_$colNm")
+            struct(keyColumn, lit(i + 1).cast(LongType).as(numColumnNm)).as(keyColumnNm),
+            col(renamedColNm).as(valColumnNm)
+          ).as(s"${keyColumnNm}_$colNm")
         }: _*
       )
   }

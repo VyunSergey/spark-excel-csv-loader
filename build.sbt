@@ -1,6 +1,6 @@
 lazy val scalaVersion2_11   = "2.11.12"
 scalaVersion := scalaVersion2_11
-val SparkVersion            = "2.2.0"
+val SparkVersion            = "2.4.7"
 val SparkExcelVersion       = "0.13.1"
 val SparkCsvVersion         = "1.5.0"
 val PureConfigVersion       = "0.12.0"
@@ -11,8 +11,6 @@ val ScalaTestVersion        = "3.2.2"
 val ScalaCheckVersion       = "1.14.1"
 val ScalaTestPlusVersion    = "3.2.2.0"
 val ScalaMeterVersion       = "0.18"
-val SparkTestingBaseVersion = "2.2.0_0.12.0"
-val ScalaMockVersion        = "3.6.0"
 
 lazy val organizationSettings = Seq(
   organization := "com.vyunsergey",
@@ -72,11 +70,7 @@ lazy val commonLibraryDependencies = Seq(
   // ScalaTestPlus
   "org.scalatestplus"          %% "scalacheck-1-14"    % ScalaTestPlusVersion % Test,
   // ScalaMeter
-  "com.storm-enroute"          %% "scalameter"         % ScalaMeterVersion,
-  // SparkTestingBase
-  "com.holdenkarau"            %% "spark-testing-base" % SparkTestingBaseVersion % Test,
-  // ScalaMock
-  "org.scalamock"              %% "scalamock-scalatest-support" % ScalaMockVersion % Test
+  "com.storm-enroute"          %% "scalameter"         % ScalaMeterVersion
 )
 
 lazy val scalaCompilerOptions = Seq(
@@ -97,7 +91,5 @@ lazy val root = (project in file(".")).settings(
   testSettings,
   assemblySettings,
   libraryDependencies ++= commonLibraryDependencies,
-  scalacOptions ++= scalaCompilerOptions,
-  addCompilerPlugin("org.spire-math" %% "kind-projector"     % KindProjectorVersion),
-  addCompilerPlugin("com.olegpy"     %% "better-monadic-for" % BetterMonadicForVersion)
+  scalacOptions ++= scalaCompilerOptions
 )
