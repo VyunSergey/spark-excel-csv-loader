@@ -10,6 +10,7 @@ import org.apache.log4j.{LogManager, Logger}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import java.nio.file.Path
+import scala.concurrent.duration._
 import scala.util.Try
 
 object Loader extends App {
@@ -52,6 +53,7 @@ object Loader extends App {
     val kvData = Transformer.keyValueColumns(data)
 
     Writer.csv(metaData)(tgtPath.resolve("meta"), Some(1))(writerConf)
+    Thread.sleep(5.seconds.toMillis)
     Writer.csv(kvData)(tgtPath.resolve("data"), None)(writerConf)
   }
 }
