@@ -2,7 +2,7 @@ package com.vyunsergey.sparkexcelcsvloader.transformer
 
 import org.apache.log4j.Logger
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
-import org.apache.spark.sql.functions.{array, col, concat_ws, explode_outer, lit, regexp_replace, row_number, struct}
+import org.apache.spark.sql.functions.{array, col, concat_ws, explode_outer, lit, regexp_replace, row_number, split, struct}
 import org.apache.spark.sql.types.{ArrayType, IntegerType, LongType, StringType, StructField, StructType}
 import org.apache.spark.sql.{Column, DataFrame, Row, SparkSession}
 
@@ -164,6 +164,81 @@ object Transformer {
       s"to DataFrame with schema:\n${convDf.schema.treeString}")
 
     convDf
+  }
+
+  /**
+   * Convert a `key` column into two columns: `id` and `num` in DataFrame.
+   *
+   * == Example ==
+   *
+   * {{{
+   *   import spark.implicits._
+   *
+   *   case class Person(name: String, age: Int, gender: String)
+   *
+   *   val data = Seq(
+   *     Person("Michael", 29, "M"),
+   *     Person("Sara", 30, "F"),
+   *     Person("Justin", 19, "M")
+   *   )
+   *
+   *   val df = Transformer.keyValueColumns(spark.createDataset(data).toDF)
+   *
+   *   df.show(false)
+   *   // +---+-------+
+   *   // |key|val    |
+   *   // +---+-------+
+   *   // |1,1|Michael|
+   *   // |1,2|29     |
+   *   // |1,3|M      |
+   *   // |2,1|Sara   |
+   *   // |2,2|30     |
+   *   // |2,3|F      |
+   *   // |3,1|Justin |
+   *   // |3,2|19     |
+   *   // |3,3|M      |
+   *   // +---+-------+
+   *
+   *   ds.printSchema
+   *   // root
+   *   //  |-- key: string (nullable = false)
+   *   //  |-- val: string (nullable = true)
+   *
+   *   val idNumDf = Transformer.idNumColumns(df)
+   *
+   *   idNumDf.show(false)
+   *   // +---+---+-------+
+   *   // |id |num|val    |
+   *   // +---+---+-------+
+   *   // |1  |1  |Michael|
+   *   // |1  |2  |29     |
+   *   // |1  |3  |M      |
+   *   // |2  |1  |Sara   |
+   *   // |2  |2  |30     |
+   *   // |2  |3  |F      |
+   *   // |3  |1  |Justin |
+   *   // |3  |2  |19     |
+   *   // |3  |3  |M      |
+   *   // +---+---+-------+
+   *
+   *   idNumDf.printSchema
+   *   // root
+   *   //  |-- id: long (nullable = true)
+   *   //  |-- num: long (nullable = true)
+   *   //  |-- val: string (nullable = true)
+   * }}}
+   */
+  def idNumColumns(df: DataFrame)(implicit spark: SparkSession): DataFrame = {
+    val keyColumn = "key"
+    val idColumn = "id"
+    val numColumn = "num"
+
+    df.select(
+      Array(
+        split(col(keyColumn), ",").getItem(0).cast(LongType).as(idColumn),
+        split(col(keyColumn), ",").getItem(1).cast(LongType).as(numColumn)
+      ) ++ df.columns.filterNot(_ == keyColumn).map(col): _*
+    )
   }
 
   /**
@@ -513,7 +588,7 @@ object Transformer {
     val dfPart = addPartitionColumn(dfRenamed)
 
     val window: WindowSpec = Window.partitionBy(col(partColumnNm)).orderBy(lit(1))
-    val keyColumn: Column = col(partColumnNm).cast(IntegerType) * lit(partitionMaxSize) + col(idColumnNm)
+    val keyColumn: Column = col(partColumnNm).cast(LongType) * lit(partitionMaxSize) + col(idColumnNm)
 
     dfPart
       .withColumn(idColumnNm, row_number().over(window).cast(LongType))
