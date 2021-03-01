@@ -2,8 +2,8 @@ package com.vyunsergey.sparkexcelcsvloader.transformer
 
 import org.apache.log4j.Logger
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
-import org.apache.spark.sql.functions.{array, col, concat_ws, explode_outer, lit, regexp_replace, row_number, split, struct}
-import org.apache.spark.sql.types.{ArrayType, IntegerType, LongType, StringType, StructField, StructType}
+import org.apache.spark.sql.functions.{array, col, concat_ws, explode_outer, lit, ltrim, regexp_replace, row_number, rtrim, split, struct, trim}
+import org.apache.spark.sql.types.{ArrayType, DataType, IntegerType, LongType, StringType, StructField, StructType}
 import org.apache.spark.sql.{Column, DataFrame, Row, SparkSession}
 
 object Transformer {
@@ -199,7 +199,7 @@ object Transformer {
    *   // |3,3|M      |
    *   // +---+-------+
    *
-   *   ds.printSchema
+   *   df.printSchema
    *   // root
    *   //  |-- key: string (nullable = false)
    *   //  |-- val: string (nullable = true)
@@ -239,6 +239,84 @@ object Transformer {
         split(col(keyColumn), ",").getItem(1).cast(LongType).as(numColumn)
       ) ++ df.columns.filterNot(_ == keyColumn).map(col): _*
     )
+  }
+
+  /**
+   * Convert a DataFrame with columns: `id`, `num` and `val` into schema and name
+   *
+   * == Example ==
+   *
+   * {{{
+   *   import spark.implicits._
+   *
+   *   case class Person(name: String, age: Int, gender: String)
+   *
+   *   val data = Seq(
+   *     Person("Michael", 29, "M"),
+   *     Person("Sara", 30, "F"),
+   *     Person("Justin", 19, "M")
+   *   )
+   *
+   *   val df = Transformer.idNumColumns(Transformer.metaColumns(spark.createDataset(data).toDF, "test"))
+   *
+   *   df.show(false)
+   *   // +---+---+----------------+
+   *   // |id |num|val             |
+   *   // +---+---+----------------+
+   *   // |0  |0  |test            |
+   *   // |0  |1  |[name, string]  |
+   *   // |0  |2  |[age, integer]  |
+   *   // |0  |3  |[gender, string]|
+   *   // +---+---+----------------+
+   *
+   *   df.printSchema
+   *   // root
+   *   //  |-- id: long (nullable = true)
+   *   //  |-- num: long (nullable = true)
+   *   //  |-- val: string (nullable = true)
+   *
+   *   val (schema, nameOp) = Transformer.schemaName(df)
+   *
+   *   println(nameOp)
+   *   // Some(test)
+   *
+   *   println(schema.treeString)
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- age: integer (nullable = true)
+   *   //  |-- gender: string (nullable = true)
+   * }}}
+   */
+  def schemaName(df: DataFrame)(implicit spark: SparkSession): (StructType, Option[String]) = {
+    import spark.implicits._
+
+    val idColumn = "id"
+    val numColumn = "num"
+    val valColumn = "val"
+    val arrColumn = "arr"
+    val nameColumn = "name"
+    val typeColumn = "type"
+
+    val metaDf = df.filter(col(idColumn) === 0)
+
+    val name = metaDf.filter(col(numColumn) === 0)
+      .select(col(valColumn).as[String])
+      .collect.headOption
+
+    val schema = StructType(
+      metaDf.filter(col(numColumn) > 0)
+        .withColumn(arrColumn, split(rtrim(ltrim(col(valColumn), "["), "]"), ","))
+        .select(
+          col(numColumn).as[Long],
+          trim(col(arrColumn).getItem(0)).as(nameColumn).as[String],
+          trim(col(arrColumn).getItem(1)).as(typeColumn).as[String]
+        )
+        .collect.sortBy(_._1).map { case (_, nm, tp) =>
+        StructField(nm, DataType.fromJson(s""""$tp""""))
+      }
+    )
+
+    (schema, name)
   }
 
   /**
@@ -301,57 +379,57 @@ object Transformer {
     )
   }
 
-/**
- * Add a `prefix` to all columns of DataFrame
- *
- * == Example ==
- *
- * {{{
- *   import spark.implicits._
- *
- *   case class Person(name: String, age: Int, gender: String)
- *
- *   val data = Seq(
- *     Person("Michael", 29, "M"),
- *     Person("Sara", 30, "F"),
- *     Person("Justin", 19, "M")
- *   )
- *
- *   val ds = spark.createDataset(data)
- *
- *   ds.show(false)
- *   // +-------+---+------+
- *   // |name   |age|gender|
- *   // +-------+---+------+
- *   // |Michael|29 |M     |
- *   // |Sara   |30 |F     |
- *   // |Justin |19 |M     |
- *   // +-------+---+------+
- *
- *   ds.printSchema
- *   // root
- *   //  |-- name: string (nullable = true)
- *   //  |-- age: integer (nullable = false)
- *   //  |-- gender: string (nullable = true)
- *
- *   val prefDf = Transformer.prefixColumns(ds.toDF)
- *
- *   prefDf.show(false)
- *   // +---------+-----+--------+
- *   // |   __name|__age|__gender|
- *   // +---------+-----+--------+
- *   // |  Michael|   29|       M|
- *   // |     Sara|   30|       F|
- *   // |   Justin|   19|       M|
- *   // +---------+-----+--------+
- *
- *   prefDf.printSchema
- *   // root
- *   //  |-- __name: string (nullable = true)
- *   //  |-- __age: integer (nullable = false)
- *   //  |-- __gender: string (nullable = true)
- * }}}
- */
+  /**
+   * Add a `prefix` to all columns of DataFrame
+   *
+   * == Example ==
+   *
+   * {{{
+   *   import spark.implicits._
+   *
+   *   case class Person(name: String, age: Int, gender: String)
+   *
+   *   val data = Seq(
+   *     Person("Michael", 29, "M"),
+   *     Person("Sara", 30, "F"),
+   *     Person("Justin", 19, "M")
+   *   )
+   *
+   *   val ds = spark.createDataset(data)
+   *
+   *   ds.show(false)
+   *   // +-------+---+------+
+   *   // |name   |age|gender|
+   *   // +-------+---+------+
+   *   // |Michael|29 |M     |
+   *   // |Sara   |30 |F     |
+   *   // |Justin |19 |M     |
+   *   // +-------+---+------+
+   *
+   *   ds.printSchema
+   *   // root
+   *   //  |-- name: string (nullable = true)
+   *   //  |-- age: integer (nullable = false)
+   *   //  |-- gender: string (nullable = true)
+   *
+   *   val prefDf = Transformer.prefixColumns(ds.toDF)
+   *
+   *   prefDf.show(false)
+   *   // +---------+-----+--------+
+   *   // |   __name|__age|__gender|
+   *   // +---------+-----+--------+
+   *   // |  Michael|   29|       M|
+   *   // |     Sara|   30|       F|
+   *   // |   Justin|   19|       M|
+   *   // +---------+-----+--------+
+   *
+   *   prefDf.printSchema
+   *   // root
+   *   //  |-- __name: string (nullable = true)
+   *   //  |-- __age: integer (nullable = false)
+   *   //  |-- __gender: string (nullable = true)
+   * }}}
+   */
   def prefixColumns(df: DataFrame, prefix: String = "__")(implicit spark: SparkSession): DataFrame = {
     df.select(
       df.columns.map(nm => col(nm).as(prefix + nm)): _*
