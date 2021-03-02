@@ -25,6 +25,7 @@ atlassian-ide-plugin.xml
 *.class
 *.log
 *.log.*
+*.sc
 
 ### SBT template
 # Simple Build Tool
