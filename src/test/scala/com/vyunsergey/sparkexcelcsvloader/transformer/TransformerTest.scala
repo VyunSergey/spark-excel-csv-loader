@@ -253,7 +253,7 @@ class TransformerTest extends AnyFlatSpec with Matchers {
   }
 
   "keyValueColumns" should "convert all data in DataFrame to (key, value)" in {
-    def check(df: DataFrame): Unit = {
+    def check(df: DataFrame, verbose: Boolean = false): Unit = {
       def findKeyField(field: StructField): Boolean =
         field.name == "key" && field.dataType == StringType
 
@@ -261,6 +261,11 @@ class TransformerTest extends AnyFlatSpec with Matchers {
         field.name == "val" && field.dataType == StringType
 
       val keyValDf = Transformer.keyValueColumns(df)
+
+      if (verbose) println(keyValDf.schema.treeString)
+      if (verbose) println(keyValDf.columns.mkString("Array(", ", ", ")"))
+      if (verbose) println(keyValDf.count)
+      if (verbose) keyValDf.show(20, truncate = false)
 
       keyValDf.columns.length shouldBe 2
       keyValDf.schema.exists(findKeyField) shouldBe true
@@ -280,7 +285,7 @@ class TransformerTest extends AnyFlatSpec with Matchers {
   }
 
   "metaColumns" should "convert all data in DataFrame to meta data in (key, value)" in {
-    def check(df: DataFrame): Unit = {
+    def check(df: DataFrame, verbose: Boolean = false): Unit = {
       def findKeyField(field: StructField): Boolean =
         field.name == "key" && field.dataType == StringType
 
@@ -289,15 +294,72 @@ class TransformerTest extends AnyFlatSpec with Matchers {
 
       val metaDf = Transformer.metaColumns(df, "test_name")
 
-      println(metaDf.schema.treeString)
-      println(metaDf.columns.mkString("Array(", ", ", ")"))
-      println(metaDf.count)
-      println(metaDf.show(20, truncate = false))
+      if (verbose) println(metaDf.schema.treeString)
+      if (verbose) println(metaDf.columns.mkString("Array(", ", ", ")"))
+      if (verbose) println(metaDf.count)
+      if (verbose) metaDf.show(20, truncate = false)
 
       metaDf.columns.length shouldBe 2
       metaDf.schema.exists(findKeyField) shouldBe true
       metaDf.schema.exists(findValueField) shouldBe true
       metaDf.count shouldBe df.columns.length + 1
+    }
+
+    check(dataFrames.test1Df)
+    check(dataFrames.test2Df)
+    check(dataFrames.test3Df)
+    check(dataFrames.integersDf)
+    check(dataFrames.numbersDf)
+    check(dataFrames.decimalDf)
+    check(dataFrames.stringsDf)
+    check(dataFrames.dateTimeDf)
+    check(dataFrames.randomDf)
+  }
+
+  "schemaName" should "convert all data in MetaData Key-Value DataFrame to (schema, name)" in {
+    def check(df: DataFrame, verbose: Boolean = false): Unit = {
+      val name = "test_name"
+      val metaDf = Transformer.metaColumns(df, name)
+      val (schema, nameOp) = Transformer.schemaName(Transformer.idNumColumns(metaDf))
+
+      if (verbose) println(nameOp)
+      if (verbose) println(schema.treeString)
+      if (verbose) println(schema.map(field => (field.name, field.dataType)).mkString("Array(", ", ", ")"))
+      if (verbose) println(schema.length)
+
+      nameOp shouldBe Some(name)
+      schema.map(field => (field.name, field.dataType)).sortBy(_._1) shouldBe df.schema.map(field => (field.name, field.dataType)).sortBy(_._1)
+      schema shouldBe StructType(df.schema.map(field => field.copy(nullable = true)))
+    }
+
+    check(dataFrames.test1Df)
+    check(dataFrames.test2Df)
+    check(dataFrames.test3Df)
+    check(dataFrames.integersDf)
+    check(dataFrames.numbersDf)
+    check(dataFrames.decimalDf)
+    check(dataFrames.stringsDf)
+    check(dataFrames.dateTimeDf)
+    check(dataFrames.randomDf)
+  }
+
+  "plainColumns" should "convert all data in Key-Value DataFrame to plain DataFrame with specified schema" in {
+    def check(df: DataFrame, verbose: Boolean = false): Unit = {
+      val name = "test_name"
+      val metaDf = Transformer.metaColumns(df, name)
+      val keyValDf = Transformer.keyValueColumns(df)
+      val (schema, nameOp) = Transformer.schemaName(Transformer.idNumColumns(metaDf))
+      val plainDf = Transformer.plainColumns(Transformer.idNumColumns(keyValDf), schema)
+
+      if (verbose) println(plainDf.schema.treeString)
+      if (verbose) println(plainDf.columns.mkString("Array(", ", ", ")"))
+      if (verbose) println(plainDf.count)
+      if (verbose) plainDf.show(20, truncate = false)
+
+      plainDf.columns.length shouldBe df.columns.length
+      plainDf.columns.sorted shouldBe df.columns.sorted
+      plainDf.count shouldBe df.count
+      nameOp shouldBe Some(name)
     }
 
     check(dataFrames.test1Df)
