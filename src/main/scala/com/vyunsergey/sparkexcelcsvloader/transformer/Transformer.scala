@@ -10,7 +10,7 @@ import scala.util.Try
 
 object Transformer {
   /**
-   * Convert DataFrame to Key-Value Metadata DataFrame with numerated column metadata (`name`, `type`)
+   * Convert DataFrame to Key-Value Metadata DataFrame with numerated column metadata as JSON
    * by (`id`, `num`) pair where `id` - row number and `num` - column number.
    *
    * == Example ==
@@ -26,9 +26,8 @@ object Transformer {
    *     Person("Justin", 19, "M")
    *   )
    *
-   *   val ds = spark.createDataset(data)
-   *
-   *   ds.show(false)
+   *   val df = spark.createDataset(data).toDF
+   *   df.show(false)
    *   // +-------+---+------+
    *   // |name   |age|gender|
    *   // +-------+---+------+
@@ -37,23 +36,23 @@ object Transformer {
    *   // |Justin |19 |M     |
    *   // +-------+---+------+
    *
-   *   ds.printSchema
+   *   df.printSchema
    *   // root
    *   //  |-- name: string (nullable = true)
    *   //  |-- age: integer (nullable = false)
    *   //  |-- gender: string (nullable = true)
    *
-   *   val metaDf = Transformer.metaColumns(ds.toDF, "Person")
+   *   val metaDf = Transformer.metaColumns(df.toDF, "Person")
    *
    *   metaDf.show(false)
-   *   // +---+---------------+
-   *   // |key|            val|
-   *   // +---+---------------+
-   *   // |0,0|         Person|
-   *   // |0,1|  [name,string]|
-   *   // |0,2|  [age,integer]|
-   *   // |0,3|[gender,string]|
-   *   // +---+---------------+
+   *   // +---+--------------------------------------------------------------------------------------------+
+   *   // |key|val                                                                                         |
+   *   // +---+--------------------------------------------------------------------------------------------+
+   *   // |0,0|Person                                                                                      |
+   *   // |0,1|{"type":"struct","fields":[{"name":"name","type":"string","nullable":true,"metadata":{}}]}  |
+   *   // |0,2|{"type":"struct","fields":[{"name":"age","type":"integer","nullable":false,"metadata":{}}]} |
+   *   // |0,3|{"type":"struct","fields":[{"name":"gender","type":"string","nullable":true,"metadata":{}}]}|
+   *   // +---+--------------------------------------------------------------------------------------------+
    *
    *   metaDf.printSchema
    *   // root
@@ -65,14 +64,12 @@ object Transformer {
                  (implicit spark: SparkSession, logger: Logger): DataFrame = {
     import spark.implicits._
 
-    val metaNameColumnNm = "name"
-    val metaTypeColumnNm = "type"
     val metaColumnNm = "meta"
     val sep = ","
 
     val typesDf = Seq(1).toDF.select(
-      df.schema.map { case StructField(colNm, colTp, _, _) =>
-        struct(lit(colNm).as(metaNameColumnNm), lit(colTp.typeName).as(metaTypeColumnNm)).as(s"${metaColumnNm}_$colNm")
+      df.schema.map { field =>
+        lit(StructType(field :: Nil).json).as(s"${metaColumnNm}_${field.name}")
       }: _*
     )
     val kvDf = keyValueColumns(typesDf)
@@ -223,14 +220,14 @@ object Transformer {
    *
    *   val metaDf = Transformer.metaColumns(df, "test")
    *   metaDf.show(false)
-   *   // +---+----------------+
-   *   // |key|val             |
-   *   // +---+----------------+
-   *   // |0,0|test            |
-   *   // |0,1|[name, string]  |
-   *   // |0,2|[age, integer]  |
-   *   // |0,3|[gender, string]|
-   *   // +---+----------------+
+   *   // +---+--------------------------------------------------------------------------------------------+
+   *   // |key|val                                                                                         |
+   *   // +---+--------------------------------------------------------------------------------------------+
+   *   // |0,0|test                                                                                        |
+   *   // |0,1|{"type":"struct","fields":[{"name":"name","type":"string","nullable":true,"metadata":{}}]}  |
+   *   // |0,2|{"type":"struct","fields":[{"name":"age","type":"integer","nullable":false,"metadata":{}}]} |
+   *   // |0,3|{"type":"struct","fields":[{"name":"gender","type":"string","nullable":true,"metadata":{}}]}|
+   *   // +---+--------------------------------------------------------------------------------------------+
    *
    *   metaDf.printSchema
    *   // root
@@ -244,7 +241,7 @@ object Transformer {
    *   println(schema.treeString)
    *   // root
    *   //  |-- name: string (nullable = true)
-   *   //  |-- age: integer (nullable = true)
+   *   //  |-- age: integer (nullable = false)
    *   //  |-- gender: string (nullable = true)
    *
    *   val plainDf = Transformer.plainColumns(Transformer.idNumColumns(kvDf), schema)
@@ -299,11 +296,14 @@ object Transformer {
       .collect
       .head
 
-    val plainDf = splitDf.select(
-      schema.zip(mapping.sortBy(_._2).map(_._1)).map { case (field, nm) =>
-        col(s"$nm.$valColumn").cast(field.dataType).as(field.name)
-      }: _*
-    )
+    val plainDf =
+      spark.createDataFrame(
+        splitDf.select(
+          schema.zip(mapping.sortBy(_._2).map(_._1)).map { case (field, nm) =>
+            col(s"$nm.$valColumn").cast(field.dataType).as(field.name)
+          }: _*
+        ).rdd, schema
+      )
 
     logger.info(s"Transform Key-Value DataFrame with schema:\n${df.schema.treeString}\n" +
       s"to DataFrame with schema:\n${plainDf.schema.treeString}")
@@ -405,14 +405,14 @@ object Transformer {
    *   val df = Transformer.idNumColumns(Transformer.metaColumns(spark.createDataset(data).toDF, "test"))
    *
    *   df.show(false)
-   *   // +---+---+----------------+
-   *   // |id |num|val             |
-   *   // +---+---+----------------+
-   *   // |0  |0  |test            |
-   *   // |0  |1  |[name, string]  |
-   *   // |0  |2  |[age, integer]  |
-   *   // |0  |3  |[gender, string]|
-   *   // +---+---+----------------+
+   *   // +---+---+--------------------------------------------------------------------------------------------+
+   *   // |id |num|val                                                                                         |
+   *   // +---+---+--------------------------------------------------------------------------------------------+
+   *   // |0  |0  |test                                                                                        |
+   *   // |0  |1  |{"type":"struct","fields":[{"name":"name","type":"string","nullable":true,"metadata":{}}]}  |
+   *   // |0  |2  |{"type":"struct","fields":[{"name":"age","type":"integer","nullable":false,"metadata":{}}]} |
+   *   // |0  |3  |{"type":"struct","fields":[{"name":"gender","type":"string","nullable":true,"metadata":{}}]}|
+   *   // +---+---+--------------------------------------------------------------------------------------------+
    *
    *   df.printSchema
    *   // root
@@ -428,7 +428,7 @@ object Transformer {
    *   println(schema.treeString)
    *   // root
    *   //  |-- name: string (nullable = true)
-   *   //  |-- age: integer (nullable = true)
+   *   //  |-- age: integer (nullable = false)
    *   //  |-- gender: string (nullable = true)
    * }}}
    */
@@ -438,9 +438,6 @@ object Transformer {
     val idColumn = "id"
     val numColumn = "num"
     val valColumn = "val"
-    val arrColumn = "arr"
-    val nameColumn = "name"
-    val typeColumn = "type"
 
     val metaDf = df.filter(col(idColumn) === 0)
 
@@ -450,14 +447,15 @@ object Transformer {
 
     val schema = StructType(
       metaDf.filter(col(numColumn) > 0)
-        .withColumn(arrColumn, split(rtrim(ltrim(col(valColumn), "["), "]"), ", "))
         .select(
           col(numColumn).as[Long],
-          trim(col(arrColumn).getItem(0)).as(nameColumn).as[String],
-          trim(col(arrColumn).getItem(1)).as(typeColumn).as[String]
+          col(valColumn).as(valColumn).as[String]
         )
-        .collect.sortBy(_._1).map { case (_, nm, tp) =>
-        StructField(nm, DataType.fromJson(s""""$tp""""))
+        .collect.sortBy(_._1).flatMap { case (_, value) =>
+        DataType.fromJson(value) match {
+          case StructType(arr) => arr
+          case _ => Array.empty[StructField]
+        }
       }
     )
 

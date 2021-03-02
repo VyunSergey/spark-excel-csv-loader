@@ -328,8 +328,8 @@ class TransformerTest extends AnyFlatSpec with Matchers {
       if (verbose) println(schema.length)
 
       nameOp shouldBe Some(name)
-      schema.map(field => (field.name, field.dataType)).sortBy(_._1) shouldBe df.schema.map(field => (field.name, field.dataType)).sortBy(_._1)
-      schema shouldBe StructType(df.schema.map(field => field.copy(nullable = true)))
+      schema.map(f => (f.name, f.dataType)).sortBy(_._1) shouldBe df.schema.map(f => (f.name, f.dataType)).sortBy(_._1)
+      schema shouldBe df.schema
     }
 
     check(dataFrames.test1Df)
@@ -358,6 +358,7 @@ class TransformerTest extends AnyFlatSpec with Matchers {
 
       plainDf.columns.length shouldBe df.columns.length
       plainDf.columns.sorted shouldBe df.columns.sorted
+      plainDf.schema shouldBe df.schema
       plainDf.count shouldBe df.count
       nameOp shouldBe Some(name)
     }
