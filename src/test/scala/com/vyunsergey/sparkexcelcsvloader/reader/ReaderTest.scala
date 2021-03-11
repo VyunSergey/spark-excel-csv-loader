@@ -5,7 +5,9 @@ import com.vyunsergey.sparkexcelcsvloader.config.Configuration
 import com.vyunsergey.sparkexcelcsvloader.data.TestDataFrame
 import com.vyunsergey.sparkexcelcsvloader.spark.{SparkConfig, SparkConnection}
 import org.apache.log4j.{LogManager, Logger}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.scalatest.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -19,7 +21,7 @@ class ReaderTest extends AnyFlatSpec with Matchers {
 
   "Reader" should "correctly read .csv file" in {
     def check(path: Path)(conf: ReaderConfig)
-             (expectedNumCols: Int, expectedNumRows: Int): Unit = {
+             (expectedNumCols: Int, expectedNumRows: Int): Assertion = {
       val df: DataFrame = Reader.csv(path)(conf)
 
       df.columns.length shouldBe expectedNumCols
@@ -30,7 +32,7 @@ class ReaderTest extends AnyFlatSpec with Matchers {
       Map("reader.csv.header" -> "true",
         "reader.csv.delimiter" -> ";",
         "reader.csv.inferSchema" -> "true")
-    )(3, 10)
+    )(4, 10)
 
     check(dataFrames.test2Path)(readerConf ++
       Map("reader.csv.header" -> "true",
@@ -48,4 +50,26 @@ class ReaderTest extends AnyFlatSpec with Matchers {
     )(5, 1313)
   }
 
+  "Reader" should "correctly read .zip file" in {
+    def check(path: Path)(conf: ReaderConfig)
+             (expectedNumCols: Int, expectedNumRows: Int, expectedSchema: StructType): Assertion = {
+      val df: DataFrame = Reader.zip(path)(conf)
+
+      df.columns.length shouldBe expectedNumCols
+      df.count shouldBe expectedNumRows
+      df.schema shouldBe expectedSchema
+    }
+
+    check(dataFrames.test1ZipPath)(readerConf ++
+      Map("reader.csv.header" -> "true",
+        "reader.csv.delimiter" -> ",",
+        "reader.csv.inferSchema" -> "true")
+    )(4, 9, dataFrames.test1Df.schema)
+
+    check(dataFrames.test2ZipPath)(readerConf ++
+      Map("reader.csv.header" -> "true",
+        "reader.csv.delimiter" -> ",",
+        "reader.csv.inferSchema" -> "true")
+    )(2, 17, dataFrames.keyValueSchema)
+  }
 }
