@@ -373,4 +373,25 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     check(dataFrames.dateTimeDf)
     check(dataFrames.randomDf)
   }
+
+  "plainColumns" should "convert all data in .Zip files to plain DataFrame with specified schema" in {
+    def check(keyValDf: DataFrame, verbose: Boolean = false): Unit = {
+      val (schema, nameOp) = Transformer.schemaName(Transformer.idNumColumns(keyValDf))
+      val plainDf = Transformer.plainColumns(Transformer.idNumColumns(keyValDf), schema)
+
+      if (verbose) println(plainDf.schema.treeString)
+      if (verbose) println(plainDf.columns.mkString("Array(", ", ", ")"))
+      if (verbose) println(plainDf.count)
+      if (verbose) plainDf.show(20, truncate = false)
+
+      plainDf.columns.length shouldBe schema.length
+      plainDf.columns.sorted shouldBe schema.map(_.name).toArray.sorted
+      plainDf.schema shouldBe schema
+      plainDf.count shouldBe (keyValDf.count - 1 - schema.length) / schema.length
+      nameOp.isDefined shouldBe true
+    }
+
+    check(dataFrames.test2ZipDf)
+    check(dataFrames.test3ZipDf)
+  }
 }

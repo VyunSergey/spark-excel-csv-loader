@@ -71,5 +71,11 @@ class ReaderTest extends AnyFlatSpec with Matchers {
         "reader.csv.delimiter" -> ",",
         "reader.csv.inferSchema" -> "true")
     )(2, 17, dataFrames.keyValueSchema)
+
+    check(dataFrames.test3ZipPath)(readerConf ++
+      Map("reader.csv.header" -> "true",
+        "reader.csv.delimiter" -> ",",
+        "reader.csv.inferSchema" -> "true")
+    )(2, 2266, dataFrames.keyValueSchema)
   }
 }
