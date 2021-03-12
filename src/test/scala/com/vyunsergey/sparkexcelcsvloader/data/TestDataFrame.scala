@@ -61,6 +61,21 @@ case class TestDataFrame(
     Map("reader.csv.header" -> "true",
       "reader.csv.inferSchema" -> "true"))
 
+  lazy val test1ZipDf: DataFrame = Reader.zip(test1ZipPath)(readerConf ++
+    Map("reader.csv.header" -> "true",
+      "reader.csv.delimiter" -> ",",
+      "reader.csv.inferSchema" -> "true"))
+
+  lazy val test2ZipDf: DataFrame = Reader.zip(test2ZipPath)(readerConf ++
+    Map("reader.csv.header" -> "true",
+      "reader.csv.delimiter" -> ",",
+      "reader.csv.inferSchema" -> "true"))
+
+  lazy val test3ZipDf: DataFrame = Reader.zip(test3ZipPath)(readerConf ++
+    Map("reader.csv.header" -> "true",
+      "reader.csv.delimiter" -> ",",
+      "reader.csv.inferSchema" -> "true"))
+
   lazy val titanicDf: DataFrame = Reader.csv(titanicPath)(readerConf ++
     Map("reader.csv.header" -> "true",
       "reader.csv.inferSchema" -> "true"))
