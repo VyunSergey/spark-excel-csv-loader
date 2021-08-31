@@ -57,7 +57,7 @@ case class TestDataFrame(
     Map("reader.csv.header" -> "true",
       "reader.csv.inferSchema" -> "true"))
 
-  lazy val test3Df: DataFrame = Reader.csv(test2Path)(readerConf ++
+  lazy val test3Df: DataFrame = Reader.csv(test3Path)(readerConf ++
     Map("reader.csv.header" -> "true",
       "reader.csv.inferSchema" -> "true"))
 
