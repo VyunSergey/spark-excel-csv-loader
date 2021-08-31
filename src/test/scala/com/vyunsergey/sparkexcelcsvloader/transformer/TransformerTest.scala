@@ -5,7 +5,7 @@ import com.vyunsergey.sparkexcelcsvloader.data.TestDataFrame
 import com.vyunsergey.sparkexcelcsvloader.reader.ReaderConfig
 import com.vyunsergey.sparkexcelcsvloader.spark.{SparkConfig, SparkConnection}
 import org.apache.log4j.{LogManager, Logger}
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.{col, lit, length => len, regexp_extract, regexp_replace}
 import org.apache.spark.sql.types.{ArrayType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -63,6 +63,37 @@ class TransformerTest extends AnyFlatSpec with Matchers {
     check(dataFrames.stringsDf)
     check(dataFrames.dateTimeDf)
     check(dataFrames.randomDf)
+  }
+
+  "clearColumns" should "regexp replace all columns with StringType of DataFrame" in {
+    def check(df: DataFrame, regexp: String, replacement: String, verbose: Boolean = false): Unit = {
+      val clearedDf = Transformer.clearColumns(df, regexp, replacement)
+
+      if (verbose) println(clearedDf.schema.treeString)
+      if (verbose) println(clearedDf.columns.mkString("Array(", ", ", ")"))
+      if (verbose) println(clearedDf.count)
+      if (verbose) clearedDf.show(20, truncate = false)
+
+      clearedDf.columns.length shouldBe df.columns.length
+      clearedDf.count shouldBe df.count
+      clearedDf.filter(
+        clearedDf.schema
+          .filter(_.dataType == StringType)
+          .map { case StructField(nm, _, _, _) =>
+            len(regexp_extract(col(nm), regexp, 1)) > 0
+          }.foldLeft(lit(false))(_ || _)
+      ).count shouldBe 0
+    }
+
+    check(dataFrames.test1Df, "\\W+", "")
+    check(dataFrames.test2Df, "\\d+", "")
+    check(dataFrames.test3Df, "\\d+", "")
+    check(dataFrames.integersDf, "\\d+", "")
+    check(dataFrames.numbersDf, "\\d+", "")
+    check(dataFrames.decimalDf, "\\d+", "")
+    check(dataFrames.stringsDf, "\\w+", "")
+    check(dataFrames.dateTimeDf, "\\d+", "")
+    check(dataFrames.randomDf, "\\W+", "")
   }
 
   "partitionsLength" should "correctly return all partitions with length of DataFrame" in {

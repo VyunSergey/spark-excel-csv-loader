@@ -49,8 +49,8 @@ object Loader extends App {
        else Reader.excel(srcPath)(readerConf)
       ).repartition(numParts.getOrElse(defaultPartitionsNum))
 
-    val metaData = Transformer.metaColumns(data, srcPath.getFileName.toString)
-    val kvData = Transformer.keyValueColumns(data)
+    val metaData = Transformer.clearColumns(Transformer.metaColumns(data, srcPath.getFileName.toString), "\\\"+", "'")
+    val kvData = Transformer.clearColumns(Transformer.keyValueColumns(data), "\\\"+", "'")
 
     Writer.csv(metaData)(tgtPath.resolve("meta"), Some(1))(writerConf)
     Thread.sleep(5.seconds.toMillis)

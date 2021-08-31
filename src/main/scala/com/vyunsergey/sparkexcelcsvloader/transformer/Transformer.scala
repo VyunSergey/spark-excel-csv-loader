@@ -580,6 +580,18 @@ object Transformer {
   }
 
   /**
+   * Regexp replace all columns with StringType of DataFrame
+   */
+  def clearColumns(df: DataFrame, regexp: String, replacement: String): DataFrame = {
+    df.select(
+      df.schema.map {
+        case StructField(nm, StringType, _, _) => regexp_replace(col(nm), regexp, replacement).as(nm)
+        case StructField(nm, _, _, _) => col(nm).as(nm)
+      }: _*
+    )
+  }
+
+  /**
    * Get all partitions with length of DataFrame
    *
    * == Example ==
